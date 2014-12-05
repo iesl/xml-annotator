@@ -16,6 +16,7 @@ import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.collection.immutable.IntMap
 import scala.collection.immutable.Queue
 import scala.collection.immutable.HashMap
+import scala.collection.immutable.ListMap
 import scala.collection.immutable.SortedSet
 
 import org.jdom2.output.Format
@@ -55,7 +56,7 @@ object Annotator {
 
   case class AnnotationInfo(annotationType: AnnotationType, bIndexPairSortedSet: SortedSet[(Int, Int)])
 
-  case class AnnotationBlock(startIndex: Int, nextIndex: Int, annotationMap: Map[AnnotationType, AnnotationSpan])
+  case class AnnotationBlock(startIndex: Int, nextIndex: Int, annotationMap: ListMap[AnnotationType, AnnotationSpan])
 
   private def getElementsOf(dom: Document) = {
     dom.getRootElement().getDescendants(new ElementFilter("tspan")).toIterable.filter(e => {
@@ -177,7 +178,7 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
     getElementsOf(dom).foldLeft(IndexedSeq[AnnotationBlock]())( (seqAcc, e) => {
       val startIndex = if (seqAcc.isEmpty) 0 else seqAcc.last.nextIndex
       val nextIndex = startIndex + e.getText().size
-      seqAcc :+ AnnotationBlock(startIndex, nextIndex, HashMap())
+      seqAcc :+ AnnotationBlock(startIndex, nextIndex, ListMap())
     } ),
     HashMap()
   )
@@ -253,7 +254,7 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
 
     val ruler = (topRulerList :+ bottomRuler).mkString("\n")
 
-    "\n" + bb.annotationMap.values.toList.distinct.map(renderAnnotation(_, (next - bb.startIndex))).mkString("\n") + "\n" + ruler + "\n "
+    "\n" + bb.annotationMap.values.toList.reverse.distinct.map(renderAnnotation(_, (next - bb.startIndex))).mkString("\n") + "\n" + ruler + "\n "
   }
 
 
