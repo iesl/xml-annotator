@@ -183,8 +183,12 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
     HashMap()
   )
 
-  private val frozenDom = dom.clone()
-  final def getElements() = getElementsOf(frozenDom.clone())
+  private var _dom = dom.clone()
+  def resetDom() = {
+    _dom = dom.clone()
+  }
+
+  final def getElements() = getElementsOf(_dom)
   private val frozenElements = getElements().toIndexedSeq
 
   private def renderAnnotation(a: AnnotationSpan, length: Int) = {
@@ -502,7 +506,7 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
     }
 
     new Annotator(
-      frozenDom,
+      _dom,
       _annotationBlockSeq,
       _annotationInfoMap
     )
@@ -524,7 +528,7 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
 
   final def write(filePath: String): Annotator = {
 
-    val writableDom = frozenDom.clone()
+    val writableDom = _dom.clone()
     getElementsOf(writableDom).zipWithIndex.foreach { case (e, i) => {
       val block = annotationBlockSeq(i)
       e.setAttribute("bio", renderAnnotationBlock(block))
