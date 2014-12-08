@@ -183,6 +183,9 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
     HashMap()
   )
 
+
+  final def getDom() = _dom
+
   private var _dom = dom.clone()
   def resetDom() = {
     _dom = dom.clone()
