@@ -167,6 +167,12 @@ object Annotator {
 
   }
 
+  def mkPairIndexSeq(textMap: IntMap[(Int, String)]): IndexedSeq[(Int, Int)] = {
+    textMap.toIndexedSeq.flatMap {
+      case (_blockIndex, (_charIndex, text)) =>
+        (0 until text.size).map(i => _blockIndex -> (_charIndex + i))
+    }
+  }
 
 }
 
@@ -383,23 +389,23 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
     }
   }
 
-  final def getTextMapInRange(blockIndex1: Int, charIndex1: Int, blockIndex2: Int, charIndex2: Int): IntMap[String] = {
+  final def getTextMapInRange(blockIndex1: Int, charIndex1: Int, blockIndex2: Int, charIndex2: Int): IntMap[(Int, String)] = {
     getElementsInRange(blockIndex1, blockIndex2).map {
       case (blockIndex, e) if blockIndex == blockIndex1 =>
-        blockIndex -> e.getText().drop(charIndex1)
+        blockIndex -> (charIndex1 -> e.getText().drop(charIndex1))
       case (blockIndex, e) if blockIndex == blockIndex2 =>
-        blockIndex -> e.getText().take(charIndex2 + 1)
+        blockIndex -> (0 -> e.getText().take(charIndex2 + 1))
       case (blockIndex, e) => 
-        blockIndex -> e.getText()
+        blockIndex -> (0 -> e.getText())
     }
   }
 
 
 
-  final def getTextMap(annotationTypeName: String)(blockIndex: Int, charIndex: Int): IntMap[String] = {
+  final def getTextMap(annotationTypeName: String)(blockIndex: Int, charIndex: Int): IntMap[(Int, String)] = {
     getRange(annotationTypeName)(blockIndex, charIndex) match {
       case None =>
-        IntMap[String]()
+        IntMap[(Int,String)]()
       case Some((blockBIndex, charBIndex, blockLIndex, charLIndex)) =>
         getTextMapInRange(
             blockBIndex, 
