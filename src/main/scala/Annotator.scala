@@ -459,6 +459,25 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
   }
 
 
+  private def getSegmentedText(annoType: String, bPairIndexSet: Set[(Int, Int)]): List[String] = {
+    bPairIndexSet.toList.map {
+      case (blockBIndex, charBIndex) =>
+        val textMap = getTextMap(annoType)(blockBIndex, charBIndex)
+        textMap.values.map(_._2).mkString("")
+    }
+  }
+
+  final def getTextByAnnotationType(annoType: String): List[String] = {
+    val bPairIndexSet = getAnnotatableIndexPairSet(Single(SegmentCon(annoType)))
+    getSegmentedText(annoType, bPairIndexSet)
+  }
+
+  final def getFilteredTextByAnnotationType(filterAnnoType: String, annoType: String): List[String] = {
+    val bPairIndexSet = getAnnotatableIndexPairSet(Range(SegmentCon(filterAnnoType), SegmentCon(annoType)))
+    getSegmentedText(annoType, bPairIndexSet)
+  }
+
+
   final def annotate(
       nameCharPairSeq: Seq[(String, Char)], 
       constraintRange: ConstraintRange, 
