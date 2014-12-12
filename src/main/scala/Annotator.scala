@@ -167,12 +167,51 @@ object Annotator {
 
   }
 
-  def mkPairIndexSeq(textMap: IntMap[(Int, String)]): IndexedSeq[(Int, Int)] = {
+  final def mkIndexPairSeq(textMap: IntMap[(Int, String)]): IndexedSeq[(Int, Int)] = {
     textMap.toIndexedSeq.flatMap {
       case (_blockIndex, (_charIndex, text)) =>
         (0 until text.size).map(i => _blockIndex -> (_charIndex + i))
     }
   }
+
+
+  final def mkIndexPairMap(indexPairSeq: IndexedSeq[(Int,Int)], bIndexPairSet: Set[(Int, Int)]) = {
+    indexPairSeq.foldLeft(IntMap[(Int,Int)]()) {
+      case (mapAcc, indexPair) =>
+        val key = if (mapAcc.isEmpty) 0 else mapAcc.lastKey + 1
+        mapAcc + (if (bIndexPairSet.contains(indexPair)) {
+          (key + 1) -> indexPair
+        } else {
+          key -> indexPair
+        })
+    }
+  }
+
+  final def mkIndexPairMap(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)]) = {
+    val indexPairSeq = mkIndexPairSeq(textMap)
+    indexPairSeq.foldLeft(IntMap[(Int,Int)]()) {
+      case (mapAcc, indexPair) =>
+        val key = if (mapAcc.isEmpty) 0 else mapAcc.lastKey + 1
+        mapAcc + (if (bIndexPairSet.contains(indexPair)) {
+          (key + 1) -> indexPair
+        } else {
+          key -> indexPair
+        })
+    }
+  }
+
+  final def mkTextWithBreaks(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)]) = {
+    textMap.foldLeft("") {
+      case (strAcc, (blockIndex, (charIndex, text))) =>
+        if (bIndexPairSet.contains(blockIndex -> charIndex)) {
+          strAcc + "\n" + text
+        } else {
+          strAcc + text
+        }
+
+    }
+  }
+
 
 }
 
@@ -344,7 +383,7 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
     if (segment.isEmpty) {
       None 
     } else {
-      def findLastPairIndex(blockIndex: Int, charIndex: Int, constraint: Constraint): (Int, Int) = {
+      def findLastIndexPair(blockIndex: Int, charIndex: Int, constraint: Constraint): (Int, Int) = {
         constraint match {
           case CharCon => 
             (blockIndex -> charIndex)
@@ -357,7 +396,7 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
               case Single(c) => c
               case Range(_, c) => c
             }
-            findLastPairIndex(blockLIndex, charLIndex, con)
+            findLastIndexPair(blockLIndex, charLIndex, con)
         }
       }
 
@@ -367,7 +406,7 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
         case Single(c) => c
         case Range(_, c) => c
       }
-      val (blockLIndex, charLIndex) = findLastPairIndex(segment.lastKey, segment(segment.lastKey).lastKey, con)
+      val (blockLIndex, charLIndex) = findLastIndexPair(segment.lastKey, segment(segment.lastKey).lastKey, con)
 
       Some(blockBIndex, charBIndex, blockLIndex, charLIndex)
 
@@ -459,8 +498,8 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
   }
 
 
-  private def getSegmentedText(annoType: String, bPairIndexSet: Set[(Int, Int)]): List[String] = {
-    bPairIndexSet.toList.map {
+  private def getSegmentedText(annoType: String, bIndexPairSet: Set[(Int, Int)]): List[String] = {
+    bIndexPairSet.toList.map {
       case (blockBIndex, charBIndex) =>
         val textMap = getTextMap(annoType)(blockBIndex, charBIndex)
         textMap.values.map(_._2).mkString("")
@@ -468,13 +507,13 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
   }
 
   final def getTextByAnnotationType(annoType: String): List[String] = {
-    val bPairIndexSet = getAnnotatableIndexPairSet(Single(SegmentCon(annoType)))
-    getSegmentedText(annoType, bPairIndexSet)
+    val bIndexPairSet = getAnnotatableIndexPairSet(Single(SegmentCon(annoType)))
+    getSegmentedText(annoType, bIndexPairSet)
   }
 
   final def getFilteredTextByAnnotationType(filterAnnoType: String, annoType: String): List[String] = {
-    val bPairIndexSet = getAnnotatableIndexPairSet(Range(SegmentCon(filterAnnoType), SegmentCon(annoType)))
-    getSegmentedText(annoType, bPairIndexSet)
+    val bIndexPairSet = getAnnotatableIndexPairSet(Range(SegmentCon(filterAnnoType), SegmentCon(annoType)))
+    getSegmentedText(annoType, bIndexPairSet)
   }
 
 
