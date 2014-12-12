@@ -175,7 +175,7 @@ object Annotator {
   }
 
 
-  final def mkIndexPairMap(indexPairSeq: IndexedSeq[(Int,Int)], bIndexPairSet: Set[(Int, Int)]) = {
+  final def mkIndexPairMap(indexPairSeq: IndexedSeq[(Int,Int)], bIndexPairSet: Set[(Int, Int)]): IntMap[(Int, Int)] = {
     indexPairSeq.foldLeft(IntMap[(Int,Int)]()) {
       case (mapAcc, indexPair) =>
         val key = if (mapAcc.isEmpty) 0 else mapAcc.lastKey + 1
@@ -187,17 +187,9 @@ object Annotator {
     }
   }
 
-  final def mkIndexPairMap(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)]) = {
+  final def mkIndexPairMap(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)]): IntMap[(Int, Int)] = {
     val indexPairSeq = mkIndexPairSeq(textMap)
-    indexPairSeq.foldLeft(IntMap[(Int,Int)]()) {
-      case (mapAcc, indexPair) =>
-        val key = if (mapAcc.isEmpty) 0 else mapAcc.lastKey + 1
-        mapAcc + (if (bIndexPairSet.contains(indexPair)) {
-          (key + 1) -> indexPair
-        } else {
-          key -> indexPair
-        })
-    }
+    mkIndexPairMap(indexPairSeq, bIndexPairSet)
   }
 
   final def mkTextWithBreaks(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)]) = {
