@@ -519,6 +519,7 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
 
     val annotationTypeSeq = nameCharPairSeq.map {
       case (name, char) =>
+        assert(!annotationInfoMap.contains(name), "annotation type named " + name + " already exists")
         AnnotationType(name, char, constraintRange)
     }
 
@@ -557,6 +558,7 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
                 })
               })
           }
+
           _annotationType.name -> AnnotationInfo(_annotationType, bIndexPairSet)
           
       }
