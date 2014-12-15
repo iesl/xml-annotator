@@ -421,13 +421,22 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
   }
 
   final def getTextMapInRange(blockIndex1: Int, charIndex1: Int, blockIndex2: Int, charIndex2: Int): IntMap[(Int, String)] = {
-    getElementsInRange(blockIndex1, blockIndex2).map {
-      case (blockIndex, e) if blockIndex == blockIndex1 =>
+    getElementsInRange(blockIndex1, blockIndex2).map { case (blockIndex, e) => 
+
+      if (blockIndex == blockIndex1 && blockIndex == blockIndex2) {
+        blockIndex -> (charIndex1 -> e.getText().take(charIndex2 + 1).drop(charIndex1))
+
+      } else if (blockIndex == blockIndex1) {
         blockIndex -> (charIndex1 -> e.getText().drop(charIndex1))
-      case (blockIndex, e) if blockIndex == blockIndex2 =>
+
+      } else if (blockIndex == blockIndex2) {
         blockIndex -> (0 -> e.getText().take(charIndex2 + 1))
-      case (blockIndex, e) => 
+
+      } else {
         blockIndex -> (0 -> e.getText())
+
+      }
+
     }
   }
 
