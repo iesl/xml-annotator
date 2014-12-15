@@ -192,11 +192,11 @@ object Annotator {
     mkIndexPairMap(indexPairSeq, bIndexPairSet)
   }
 
-  final def mkTextWithBreaks(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)]) = {
+  final def mkTextWithBreaks(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)], break: Char = '\n') = {
     textMap.foldLeft("") {
       case (strAcc, (blockIndex, (charIndex, text))) =>
         if (bIndexPairSet.contains(blockIndex -> charIndex)) {
-          strAcc + "\n" + text
+          strAcc + break + text
         } else {
           strAcc + text
         }
