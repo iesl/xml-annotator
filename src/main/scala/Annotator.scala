@@ -634,6 +634,21 @@ class Annotator(
       e.setAttribute("bio", renderAnnotationBlock(block))
     }}
 
+    val root = writableDom.getRootElement()
+    val annotationLinksE = new Element("annotation-links")
+    annotationLinkSet.map(link => {
+      val e = new Element("link")
+      link.foreach(pair => {
+        val annoType = pair._1
+        val indexPair = pair._2
+        val block = annotationBlockSeq(indexPair._1)
+        val totalIndex = block.startIndex + indexPair._2
+        e.setAttribute(annoType, totalIndex.toString)
+      })
+      annotationLinksE.addContent(e)
+    })
+    root.addContent(annotationLinksE)
+
     //format
     val outputter = new XMLOutputter(Format.getPrettyFormat(), xmlOutputProcessor)
 
