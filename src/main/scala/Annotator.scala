@@ -16,6 +16,7 @@ import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.collection.immutable.IntMap
 import scala.collection.immutable.Queue
 import scala.collection.immutable.HashMap
+import scala.collection.immutable.HashSet
 import scala.collection.immutable.ListMap
 import scala.collection.immutable.SortedSet
 
@@ -39,6 +40,8 @@ object Annotator {
 
   type Element = org.jdom2.Element
   type ElementFilter = org.jdom2.filter.ElementFilter
+
+  type AnnotationLink = Map[String, (Int, Int)]
   
 
   sealed trait Constraint
@@ -208,7 +211,12 @@ object Annotator {
 }
 
 import Annotator._
-class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[AnnotationBlock], val annotationInfoMap: Map[String, AnnotationInfo]) {
+class Annotator(
+    private val dom: Document, 
+    val annotationBlockSeq: IndexedSeq[AnnotationBlock], 
+    val annotationInfoMap: Map[String, AnnotationInfo],
+    val annotationLinkSet: Set[AnnotationLink] 
+) {
 
   def this(dom: Document) = this(
     dom,
@@ -217,7 +225,8 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
       val nextIndex = startIndex + e.getText().size
       seqAcc :+ AnnotationBlock(startIndex, nextIndex, ListMap())
     } ),
-    HashMap()
+    HashMap(),
+    HashSet()
   )
 
 
@@ -517,11 +526,10 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
     getSegmentedText(annoType, bIndexPairSet)
   }
 
-
   final def annotate(
       nameCharPairSeq: Seq[(String, Char)], 
       constraintRange: ConstraintRange, 
-      rule: (Int, Int) => Option[Label]
+      fullLabelMap: Map[(Int, Int), Label]
   ) = {
 
     val annotatableIndexPairSet = getAnnotatableIndexPairSet(constraintRange)
@@ -532,15 +540,15 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
         AnnotationType(name, char, constraintRange)
     }
 
-    val labelTable = annotatableIndexPairSet.foldLeft(IntMap[IntMap[Label]]()) {
-      case (tableAcc, (blockIndex, charIndex)) =>
-        val labelOp = rule(blockIndex, charIndex)
-        labelOp match {
-          case Some(label) if tableAcc.contains(blockIndex) =>
-            tableAcc + (blockIndex -> (tableAcc(blockIndex) + (charIndex -> label)))
-          case Some(label) =>
-            tableAcc + (blockIndex -> IntMap(charIndex -> label))
-          case None => tableAcc
+    val labelTable = fullLabelMap.filter(p => {
+      val indexPair = p._1
+      annotatableIndexPairSet.contains(indexPair)
+    }).foldLeft(IntMap[IntMap[Label]]()) {
+      case (tableAcc, ((blockIndex, charIndex), label)) =>
+        if (tableAcc.contains(blockIndex)) {
+          tableAcc + (blockIndex -> (tableAcc(blockIndex) + (charIndex -> label)))
+        } else {
+          tableAcc + (blockIndex -> IntMap(charIndex -> label))
         }
     }
 
@@ -576,11 +584,33 @@ class Annotator(private val dom: Document, val annotationBlockSeq: IndexedSeq[An
     }
 
     new Annotator(
-      _dom,
+      dom,
       _annotationBlockSeq,
-      _annotationInfoMap
+      _annotationInfoMap,
+      annotationLinkSet
     )
     
+  }
+
+  final def annotateLink(_annotationLinkSet: Set[AnnotationLink]): Annotator = {
+
+    val bIndexSetMap = _annotationLinkSet.flatMap(_.keys).map(annoTypeStr => {
+      annoTypeStr -> getAnnotatableIndexPairSet(Single(SegmentCon(annoTypeStr)))
+    }).toMap
+
+    new Annotator(
+      dom,
+      annotationBlockSeq,
+      annotationInfoMap,
+      annotationLinkSet ++ _annotationLinkSet.filter(annoLink => {
+        annoLink.foldLeft(true) {
+          case (boolAcc, (annoTypeStr, indexPair)) =>
+            boolAcc && bIndexSetMap.contains(annoTypeStr) && bIndexSetMap(annoTypeStr).contains(indexPair)
+        }
+      })
+    )
+
+
   }
 
   private val xmlOutputProcessor = new AbstractXMLOutputProcessor {
