@@ -33,7 +33,7 @@ object Annotator {
   type ElementFilter = org.jdom2.filter.ElementFilter
   type AnnotationLink = Map[String, (Int, Int)]
 
-  /** Constructors for creating Labels
+  /** Constructors for Label
     *
     * BIOLU represent a text character's position in an annotation
     */
@@ -44,10 +44,11 @@ object Annotator {
   case object L extends Label
   case class U(c: Char) extends Label
 
+  /** Constructor for AnnotationType **/
   case class AnnotationType(name: String, c: Char, constraintRange: ConstraintRange)
 
 
-  /** Constructors for Constraints 
+  /** Constructors for Constraint
     *
     * CharCon is a constraint on the primitive unit of characters 
     * SegmentCon is a constraint on a segment of a specified annotation type
@@ -56,44 +57,57 @@ object Annotator {
   case object CharCon extends Constraint
   case class SegmentCon(annotationTypeName: String) extends Constraint
 
-  /** Constructors for ConstraintRanges 
+  /** Constructors for ConstraintRange 
     *
+    * Range takes an annotation type string and a constraint such that
+    * the annotation type is associated with the constraint 
+    * or is associated with a SegmentCon constraint whose type 
+    * has these same qualities just mentioned of the initial annotation type 
     */
   sealed trait ConstraintRange
-  case class Range(from: String, to: Constraint) extends ConstraintRange
+  case class Range(annoTypeName: String, con: Constraint) extends ConstraintRange
   case class Single(constraint: Constraint) extends ConstraintRange
 
+  /** Constructor for AnnotationSpan **/
   case class AnnotationSpan(
     labelMap: IntMap[Label], 
     annotationTypeSeq: Seq[AnnotationType]
   )
 
+  /** Constructor for AnnotationInfo **/
   case class AnnotationInfo(annotationType: AnnotationType, bIndexPairSortedSet: SortedSet[(Int, Int)])
 
+  /** Constructor for AnnotationBlock **/
   case class AnnotationBlock(startIndex: Int, nextIndex: Int, annotationMap: ListMap[AnnotationType, AnnotationSpan])
 
+  /** Function to get all non-empty tspan elements **/
   private def getElements(dom: Document): Iterable[Element] = {
     dom.getRootElement().getDescendants(new ElementFilter("tspan")).toIterable.filter(e => {
       e.getText().size > 0
     })
   }
 
+  /** Function to get element's font size **/
   def fontSize(e: Element): Double = {
     e.getAttribute("font-size").getValue().dropRight(2).toDouble
   }
 
+  /** Function to get element's y position **/
   def y(e: Element): Double = {
     e.getAttribute("y").getValue().toDouble 
   }
 
+  /** Function to get element's x positions **/
   def xs(e: Element): Array[Double] = {
     e.getAttribute("x").getValue().split(" ").map(_.toDouble) 
   }
 
+  /** Function to get element's last character's right edge position **/
   def endX(e: Element): Double = {
     e.getAttribute("endX").getValue().toDouble 
   }
 
+  /** Function to get the most recent common ancestor of two elements **/
   def commonAncestor(e1: Element, e2: Element): Element = {
     require(e1 != null && e2 != null, "one of the elements has invalid null value")
     if (e1 == e2) {
@@ -107,8 +121,9 @@ object Annotator {
   //and at https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/transform
   private type SvgMatrix = Array[Double]
 
+  /** Function to multiply two svg matrices **/
   private def svgMatrixMultiply(m1: SvgMatrix, m2: SvgMatrix): SvgMatrix = {
-    require(m1.size == 6  && m2.size == 6, "one or more SvgMatrix has invalid size instead of size of 6")
+    require(m1.size == 6 && m2.size == 6, "one or more SvgMatrix has invalid size instead of size of 6")
 
     val _0 = m1(0) * m2(0) + m1(2) * m2(1) 
     val _1 = m1(1) * m2(0) + m1(3) * m2(1)
@@ -119,6 +134,7 @@ object Annotator {
     Array(_0, _1, _2, _3, _4, _5)
   }
 
+  /** Function to extract svg matrix from element's transform attribute **/
   private def svgMatrix(e: Element): SvgMatrix = {
 
     val identity = Array(1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
@@ -151,6 +167,7 @@ object Annotator {
     }
   }
 
+  /** Function to get source element's x and y positions in its ancestor's coordinate system **/
   def getTransformedCoords(sourceE: Element, ancestorE: Element): (List[Double], Double, List[Double]) = {
 
     def matrixTotal(e: Element): SvgMatrix = {
@@ -181,6 +198,13 @@ object Annotator {
 
   }
 
+  /** Function to make a sequence of int pairs from a map of int to int and string  
+    *
+    * example:
+    * input: { 3 -> (4, "abcde"), 5 -> (0, "fghi") }
+    * output: [ (3,4), (3,5), (3,6), (3,7), (3,8), (5,0), (5,1), (5,2), (5,3) ]  
+    *
+    */
   final def mkIndexPairSeq(textMap: IntMap[(Int, String)]): IndexedSeq[(Int, Int)] = {
     textMap.toIndexedSeq.flatMap {
       case (_blockIndex, (_charIndex, text)) =>
@@ -189,6 +213,18 @@ object Annotator {
   }
 
 
+  /** Function to make a map of ints to int pairs  
+    *
+    * param indexPairSeq specifies the original position of every int pair
+    * param bIndexPairSet specifies the int pair whose position is to be incremented 
+    * and whose following int pairs' positions are to be incremented
+    *
+    * example:
+    * input: indexPairSeq = [ (3,4), (3,5), (3,6), (3,7), (3,8), (5,0), (5,1), (5,2), (5,3) ]  
+    *        bIndexPairSet = { (3,6), (5,1) } 
+    * output: { 0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3) }  
+    *
+    */
   final def mkIndexPairMap(indexPairSeq: IndexedSeq[(Int,Int)], bIndexPairSet: Set[(Int, Int)]): IntMap[(Int, Int)] = {
     indexPairSeq.foldLeft(IntMap[(Int,Int)]()) {
       case (mapAcc, indexPair) =>
@@ -201,11 +237,28 @@ object Annotator {
     }
   }
 
+  /** Function to make a map of ints to int pairs  
+    *
+    * example:
+    * input: textMap =  input: { 3 -> (4, "abcde"), 5 -> (0, "fghi") }
+    *        bIndexPairSet = { (3,6), (5,1) } 
+    * output: { 0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3) }  
+    *
+    */
   final def mkIndexPairMap(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)]): IntMap[(Int, Int)] = {
     val indexPairSeq = mkIndexPairSeq(textMap)
     mkIndexPairMap(indexPairSeq, bIndexPairSet)
   }
 
+  /** Function to make a string of text with specified char inserted at specified locations 
+    *
+    * example:
+    * input: textMap =  input: { 3 -> (4, "abcde"), 5 -> (0, "fghi") }
+    *        bIndexPairSet = { (5,0) } 
+    *        break = ' '
+    * output: "abcde fghi"
+    *
+    */
   final def mkTextWithBreaks(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)], break: Char = '\n'): String = {
     textMap.foldLeft("") {
       case (strAcc, (blockIndex, (charIndex, text))) =>
