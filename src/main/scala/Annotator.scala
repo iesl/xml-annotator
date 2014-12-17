@@ -25,8 +25,18 @@ import org.jdom2.output.XMLOutputter
 import org.jdom2.output.LineSeparator
 import org.jdom2.output.support.AbstractXMLOutputProcessor
 
+/** Functions and Constructors for transforming Annotator instance values **/
 object Annotator {
 
+  type Segment = IntMap[IntMap[Label]]
+  type Element = org.jdom2.Element
+  type ElementFilter = org.jdom2.filter.ElementFilter
+  type AnnotationLink = Map[String, (Int, Int)]
+
+  /** Constructors for creating Labels
+    *
+    * BIOLU represent a text character's position in an annotation
+    */
   sealed trait Label
   case class B(c: Char) extends Label
   case object I extends Label
@@ -34,22 +44,23 @@ object Annotator {
   case object L extends Label
   case class U(c: Char) extends Label
 
-  type Segment = IntMap[IntMap[Label]]
-
   case class AnnotationType(name: String, c: Char, constraintRange: ConstraintRange)
 
-  type Element = org.jdom2.Element
-  type ElementFilter = org.jdom2.filter.ElementFilter
 
-  type AnnotationLink = Map[String, (Int, Int)]
-  
-
+  /** Constructors for Constraints 
+    *
+    * CharCon is a constraint on the primitive unit of characters 
+    * SegmentCon is a constraint on a segment of a specified annotation type
+    */
   sealed trait Constraint
   case object CharCon extends Constraint
   case class SegmentCon(annotationTypeName: String) extends Constraint
 
+  /** Constructors for ConstraintRanges 
+    *
+    */
   sealed trait ConstraintRange
-  case class Range(from: Constraint, to: Constraint) extends ConstraintRange
+  case class Range(from: String, to: Constraint) extends ConstraintRange
   case class Single(constraint: Constraint) extends ConstraintRange
 
   case class AnnotationSpan(
@@ -61,25 +72,25 @@ object Annotator {
 
   case class AnnotationBlock(startIndex: Int, nextIndex: Int, annotationMap: ListMap[AnnotationType, AnnotationSpan])
 
-  private def getElementsOf(dom: Document) = {
+  private def getElements(dom: Document): Iterable[Element] = {
     dom.getRootElement().getDescendants(new ElementFilter("tspan")).toIterable.filter(e => {
       e.getText().size > 0
     })
   }
 
-  def fontSize(e: Element) = {
+  def fontSize(e: Element): Double = {
     e.getAttribute("font-size").getValue().dropRight(2).toDouble
   }
 
-  def y(e: Element) = {
+  def y(e: Element): Double = {
     e.getAttribute("y").getValue().toDouble 
   }
 
-  def xs(e: Element) = {
+  def xs(e: Element): Array[Double] = {
     e.getAttribute("x").getValue().split(" ").map(_.toDouble) 
   }
 
-  def endX(e: Element) = {
+  def endX(e: Element): Double = {
     e.getAttribute("endX").getValue().toDouble 
   }
 
@@ -195,7 +206,7 @@ object Annotator {
     mkIndexPairMap(indexPairSeq, bIndexPairSet)
   }
 
-  final def mkTextWithBreaks(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)], break: Char = '\n') = {
+  final def mkTextWithBreaks(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)], break: Char = '\n'): String = {
     textMap.foldLeft("") {
       case (strAcc, (blockIndex, (charIndex, text))) =>
         if (bIndexPairSet.contains(blockIndex -> charIndex)) {
@@ -220,7 +231,7 @@ class Annotator(
 
   def this(dom: Document) = this(
     dom,
-    getElementsOf(dom).foldLeft(IndexedSeq[AnnotationBlock]())( (seqAcc, e) => {
+    Annotator.getElements(dom).foldLeft(IndexedSeq[AnnotationBlock]())( (seqAcc, e) => {
       val startIndex = if (seqAcc.isEmpty) 0 else seqAcc.last.nextIndex
       val nextIndex = startIndex + e.getText().size
       seqAcc :+ AnnotationBlock(startIndex, nextIndex, ListMap())
@@ -229,18 +240,17 @@ class Annotator(
     HashSet()
   )
 
+  private var _dom: Document = dom.clone()
 
-  final def getDom() = _dom
-
-  private var _dom = dom.clone()
-  def resetDom() = {
+  final def resetDom(): Unit = {
     _dom = dom.clone()
   }
 
-  final def getElements() = getElementsOf(_dom)
-  private val frozenElements = getElements().toIndexedSeq
+  final def getDom(): Document = _dom
 
-  private def renderAnnotation(a: AnnotationSpan, length: Int) = {
+  final def getElements(): Iterable[Element] = Annotator.getElements(_dom)
+
+  private def renderAnnotation(a: AnnotationSpan, length: Int): String = {
 
     val posi = (0 until length).foldLeft("")((stringAcc, i) => {
       stringAcc + (a.labelMap.get(i) match {
@@ -264,15 +274,24 @@ class Annotator(
             "char"
           case Single(SegmentCon(annotationTypeName)) => 
             annotationTypeName
-          case Range(x, y) if x == y => 
-            loop(Single(x))
-          case Range(SegmentCon(annotationTypeName), end) => 
+          case Range(annotationTypeName, end) => 
             val annotationType = annotationInfoMap(annotationTypeName).annotationType
             val con = annotationType.constraintRange match {
               case Single(c) => c
               case Range(_, c) => c
             }
-            annotationTypeName + "." + loop(Range(con, end))
+
+            if (con == end) {
+              annotationTypeName + "." + loop(Single(end))
+            } else {
+              con match {
+                case CharCon => 
+                  assert(false)
+                  annotationTypeName + "." + loop(Single(con))
+                case SegmentCon(_annoTypeName) =>
+                  annotationTypeName + "." + loop(Range(_annoTypeName, end))
+              }
+            }
         }
       }
       loop(constraintRange)
@@ -303,7 +322,7 @@ class Annotator(
       }).mkString("")+"|"
     })
 
-    val bottomRuler = "| |"+(bb.startIndex until next).map(_ % 10).mkString("")+"|"
+    val bottomRuler = "| |" + (bb.startIndex until next).map(_ % 10).mkString("") + "|"
 
     val ruler = (topRulerList :+ bottomRuler).mkString("\n")
 
@@ -311,15 +330,15 @@ class Annotator(
   }
 
 
-  private def addAnnotation(annotationSpan: AnnotationSpan, annotationBlock: AnnotationBlock) = { 
+  private def addAnnotation(annotationSpan: AnnotationSpan, annotationBlock: AnnotationBlock): AnnotationBlock = { 
     require(annotationSpan.labelMap.lastKey < annotationBlock.nextIndex, "annotationSpan is too long for annotationBlock")
     annotationSpan.annotationTypeSeq.foldLeft(annotationBlock)((b, annotationType) => {
       b.copy(annotationMap = b.annotationMap + (annotationType -> annotationSpan))
     })
 
   }
-
-  private val charBIndexPairSet = SortedSet(frozenElements.zipWithIndex.flatMap { 
+  
+  private val charBIndexPairSet: SortedSet[(Int, Int)] = SortedSet(getElements().toIndexedSeq.zipWithIndex.flatMap { 
     case (e, blockIndex) => 
       (0 until e.getText().size).map(charIndex => {
         blockIndex -> charIndex
@@ -450,7 +469,6 @@ class Annotator(
   }
 
 
-
   final def getTextMap(annotationTypeName: String)(blockIndex: Int, charIndex: Int): IntMap[(Int, String)] = {
     getRange(annotationTypeName)(blockIndex, charIndex) match {
       case None =>
@@ -471,7 +489,7 @@ class Annotator(
         charBIndexPairSet
       case Single(SegmentCon(annotationTypeName)) =>
         annotationInfoMap(annotationTypeName).bIndexPairSortedSet
-      case Range(SegmentCon(annotationTypeName), endCon) =>
+      case Range(annotationTypeName, endCon) =>
         def loop(bIndexPairSortedSetAcc: SortedSet[(Int, Int)], constraint: Constraint): SortedSet[(Int, Int)] = {
           (constraint, endCon) match {
             case (CharCon, SegmentCon(_)) => 
@@ -522,7 +540,7 @@ class Annotator(
   }
 
   final def getFilteredTextByAnnotationType(filterAnnoType: String, annoType: String): List[String] = {
-    val bIndexPairSet = getAnnotatableIndexPairSet(Range(SegmentCon(filterAnnoType), SegmentCon(annoType)))
+    val bIndexPairSet = getAnnotatableIndexPairSet(Range(filterAnnoType, SegmentCon(annoType)))
     getSegmentedText(annoType, bIndexPairSet)
   }
 
@@ -530,7 +548,7 @@ class Annotator(
       nameCharPairSeq: Seq[(String, Char)], 
       constraintRange: ConstraintRange, 
       fullLabelMap: Map[(Int, Int), Label]
-  ) = {
+  ): Annotator = {
 
     val annotatableIndexPairSet = getAnnotatableIndexPairSet(constraintRange)
 
@@ -599,9 +617,7 @@ class Annotator(
     }).toMap
 
     new Annotator(
-      dom,
-      annotationBlockSeq,
-      annotationInfoMap,
+      dom, annotationBlockSeq, annotationInfoMap,
       annotationLinkSet ++ _annotationLinkSet.filter(annoLink => {
         annoLink.foldLeft(true) {
           case (boolAcc, (annoTypeStr, indexPair)) =>
@@ -629,7 +645,7 @@ class Annotator(
   final def write(filePath: String): Annotator = {
 
     val writableDom = _dom.clone()
-    getElementsOf(writableDom).zipWithIndex.foreach { case (e, i) => {
+    Annotator.getElements(writableDom).zipWithIndex.foreach { case (e, i) => {
       val block = annotationBlockSeq(i)
       e.setAttribute("bio", renderAnnotationBlock(block))
     }}
