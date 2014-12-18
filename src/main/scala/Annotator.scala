@@ -167,8 +167,10 @@ object Annotator {
     }
   }
 
+  case class PositionGroup(xs: List[Double], endX: Double, ys: List[Double]) 
+
   /** Function to get source element's x and y positions in its ancestor's coordinate system **/
-  def getTransformedCoords(sourceE: Element, ancestorE: Element): (List[Double], Double, List[Double]) = {
+  def getTransformedCoords(sourceE: Element, ancestorE: Element): PositionGroup = {
 
     def matrixTotal(e: Element): SvgMatrix = {
       require(e != null)
@@ -194,7 +196,7 @@ object Annotator {
 
     val _endX = m(0) * endX(sourceE) + m(2) * sourceY + m(4)
 
-    (_xs.toList, _endX, _ys.toList)
+    PositionGroup(_xs.toList, _endX, _ys.toList)
 
   }
 
@@ -240,7 +242,7 @@ object Annotator {
   /** Function to make a map of ints to int pairs  
     *
     * example:
-    * input: textMap =  input: { 3 -> (4, "abcde"), 5 -> (0, "fghi") }
+    * input: textMap = { 3 -> (4, "abcde"), 5 -> (0, "fghi") }
     *        bIndexPairSet = { (3,6), (5,1) } 
     * output: { 0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3) }  
     *
@@ -253,7 +255,7 @@ object Annotator {
   /** Function to make a string of text with specified char inserted at specified locations 
     *
     * example:
-    * input: textMap =  input: { 3 -> (4, "abcde"), 5 -> (0, "fghi") }
+    * input: textMap = { 3 -> (4, "abcde"), 5 -> (0, "fghi") }
     *        bIndexPairSet = { (5,0) } 
     *        break = ' '
     * output: "abcde fghi"
