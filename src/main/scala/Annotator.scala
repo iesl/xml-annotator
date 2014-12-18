@@ -538,7 +538,7 @@ class Annotator(
     }
   }
 
-  final def getAnnotatableIndexPairSet(constraintRange: ConstraintRange): SortedSet[(Int, Int)] = {
+  final def getBIndexPairSet(constraintRange: ConstraintRange): SortedSet[(Int, Int)] = {
     constraintRange match {
       case Single(CharCon) =>
         charBIndexPairSet
@@ -590,12 +590,12 @@ class Annotator(
   }
 
   final def getTextByAnnotationType(annoType: String): List[String] = {
-    val bIndexPairSet = getAnnotatableIndexPairSet(Single(SegmentCon(annoType)))
+    val bIndexPairSet = getBIndexPairSet(Single(SegmentCon(annoType)))
     getSegmentedText(annoType, bIndexPairSet)
   }
 
   final def getFilteredTextByAnnotationType(filterAnnoType: String, annoType: String): List[String] = {
-    val bIndexPairSet = getAnnotatableIndexPairSet(Range(filterAnnoType, SegmentCon(annoType)))
+    val bIndexPairSet = getBIndexPairSet(Range(filterAnnoType, SegmentCon(annoType)))
     getSegmentedText(annoType, bIndexPairSet)
   }
 
@@ -605,7 +605,7 @@ class Annotator(
       fullLabelMap: Map[(Int, Int), Label]
   ): Annotator = {
 
-    val annotatableIndexPairSet = getAnnotatableIndexPairSet(constraintRange)
+    val annotatableIndexPairSet = getBIndexPairSet(constraintRange)
 
     val annotationTypeSeq = nameCharPairSeq.map {
       case (name, char) =>
@@ -668,7 +668,7 @@ class Annotator(
   final def annotateLink(_annotationLinkSet: Set[AnnotationLink]): Annotator = {
 
     val bIndexSetMap = _annotationLinkSet.flatMap(_.keys).map(annoTypeStr => {
-      annoTypeStr -> getAnnotatableIndexPairSet(Single(SegmentCon(annoTypeStr)))
+      annoTypeStr -> getBIndexPairSet(Single(SegmentCon(annoTypeStr)))
     }).toMap
 
     new Annotator(

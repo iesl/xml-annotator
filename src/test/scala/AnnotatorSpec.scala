@@ -84,7 +84,7 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  it should "give double value if element has attribute font-size with value \"[some numer]px\"" in {
+  it should "return a double value if element has attribute font-size with value \"[some numer]px\"" in {
     assertResult(20) {
       Annotator.fontSize(e_1_1_1)
     }
@@ -100,7 +100,7 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  it should "give double value if element has attribute y with numeric value" in {
+  it should "return a double value if element has attribute y with numeric value" in {
     assertResult(0) {
       Annotator.y(e_1_1_1)
     }
@@ -117,7 +117,7 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  it should "give a list of doubles if element has attribute xs with value as space separated list of numbers" in {
+  it should "return a list of doubles if element has attribute xs with value as space separated list of numbers" in {
     assertResult(List(0, 8.88, 15.54, 29.98, 35.54, 45.54, 51.1, 61.1, 71.1, 81.1, 91.1, 96.1)) {
       Annotator.xs(e_1_1_1)
     }
@@ -152,14 +152,13 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
-  "getTransformedCoords" should "raise exception if first argument is missing y, endX, or xs attributes" in {
-
+  "getTransformedCoords" should "raise exception if the first argument is missing y, endX, or xs attributes" in {
     intercept[NullPointerException] {
       Annotator.getTransformedCoords(e_1_1, e)
     }
   }
 
-  it should "return a PositionGroup otherwise" in {
+  it should "return a PositionGroup, otherwise" in {
     assertResult(
       Annotator.PositionGroup(
         List(32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0),
@@ -229,7 +228,7 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  "mkIndexPairMap" should "return a map of ints to int pairs, when first argument is a textmap" in {
+  it should "return a map of ints to int pairs, when first argument is a textmap" in {
     assertResult(
       IntMap(0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3)) 
     ) {
