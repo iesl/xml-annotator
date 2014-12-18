@@ -10,14 +10,18 @@ import org.jdom2.Element
 import org.jdom2.Document
 import org.jdom2.util.IteratorIterable
 
-class AnnotatorSpec extends FunSuite {
+class AnnotatorSpec extends FlatSpec {
+
+  val dom = new Document()
 
   val e = {
-    new Element("svg")
+    val _e = new Element("svg")
       .setAttribute("version", "1.1") 
       .setAttribute("width", "612px")
       .setAttribute("height", "3168px")
       .setAttribute("viewBox", "0 0 612 3168")
+     dom.setRootElement(_e)
+     _e
   }
 
   val e_1 = {
@@ -39,6 +43,7 @@ class AnnotatorSpec extends FunSuite {
       .setAttribute("x", "0 8.88 15.54 29.98 35.54 45.54 51.1 61.1 71.1 81.1 91.1 96.1")
       .setAttribute("endX", "100.2")
       .setAttribute("y", "0")
+      .setAttribute("font-size", "20px")
       .setText("abcdefghijkl")
     e_1_1.addContent(_e)
     _e
@@ -56,6 +61,7 @@ class AnnotatorSpec extends FunSuite {
       .setAttribute("x", "0 11.51 20.15 25.91 33.59 43.19 48.93 53.03 65.51 73.19 77.99 86.63 92.39 97.19 105.83")
       .setAttribute("endX", "112.43")
       .setAttribute("y", "0")
+      .setAttribute("font-size", "17.2154px")
       .setText("abcdefghijklmno")
     e_1_2.addContent(_e)
     _e
@@ -66,17 +72,94 @@ class AnnotatorSpec extends FunSuite {
       .setAttribute("x", "137.16 146.75 154.43 164.03 171.71 186.11")
       .setAttribute("endX", "191.22")
       .setAttribute("y", "19.91")
+      .setAttribute("font-size", "17.2154px")
       .setText("abcdef")
     e_1_2.addContent(_e)
     _e
   }
 
-  test("getTransformedCoords") {
+  "fontSize" should "raise exception if element has no attribute font-size" in {
+    intercept[NullPointerException] {
+      Annotator.fontSize(e)
+    }
+  }
+
+  it should "give double value if element has attribute font-size with value \"[some numer]px\"" in {
+    assertResult(20) {
+      Annotator.fontSize(e_1_1_1)
+    }
+
+    assertResult(17.2154) {
+      Annotator.fontSize(e_1_2_1)
+    }
+  }
+
+  "y" should "raise exception if element has no attribtue y" in {
+    intercept[NullPointerException] {
+      Annotator.y(e_1_1)
+    }
+  }
+
+  it should "give double value if element has attribute y with numeric value" in {
+    assertResult(0) {
+      Annotator.y(e_1_1_1)
+    }
+
+    assertResult(19.91) {
+      Annotator.y(e_1_2_2)
+    }
+
+  }
+
+  "xs" should  "raise exception if element has no attribtue xs" in {
+    intercept[NullPointerException] {
+      Annotator.y(e_1_1)
+    }
+  }
+
+  it should "give a list of doubles if element has attribute xs with value as space separated list of numbers" in {
+    assertResult(List(0, 8.88, 15.54, 29.98, 35.54, 45.54, 51.1, 61.1, 71.1, 81.1, 91.1, 96.1)) {
+      Annotator.xs(e_1_1_1)
+    }
+  }
+
+  "commonAncestor" should "raise exception if either argument is null" in {
+    intercept[IllegalArgumentException] {
+      Annotator.commonAncestor(null, null)
+    }
+  }
+
+  it should "raise exception if arguments are in different trees" in {
+    intercept[IllegalArgumentException] {
+      Annotator.commonAncestor(new Element("a"), new Element("b"))
+    }
+  }
+
+  it should "raise exception if arguments are of different depths in the same tree" in {
+    intercept[IllegalArgumentException] {
+      Annotator.commonAncestor(e_1_1, e_1_2_1)
+    }
+  }
+
+  it should "return the most recent common ancestor, otherwise" in {
+    assertResult(e_1_2) {
+      Annotator.commonAncestor(e_1_2_1, e_1_2_2)
+    }
+
+    assertResult(e_1) {
+      Annotator.commonAncestor(e_1_1_1, e_1_2_1)
+    }
+
+  }
+
+  "getTransformedCoords" should "raise exception if first argument is missing y, endX, or xs attributes" in {
 
     intercept[NullPointerException] {
       Annotator.getTransformedCoords(e_1_1, e)
     }
+  }
 
+  it should "return a PositionGroup otherwise" in {
     assertResult(
       Annotator.PositionGroup(
         List(32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0),
@@ -96,7 +179,6 @@ class AnnotatorSpec extends FunSuite {
     ) {
       Annotator.getTransformedCoords(e_1_1_1, e_1_1)
     }
-
     
     assertResult(
       Annotator.PositionGroup(
@@ -117,16 +199,17 @@ class AnnotatorSpec extends FunSuite {
     ) {
       Annotator.getTransformedCoords(e_1_2_2, e)
     }
+  }
 
+  it should "not make transformations for ancestral elements lacking transform attributes" in {
     assertResult(
       Annotator.getTransformedCoords(e_1_2_2, e)
     ) {
       Annotator.getTransformedCoords(e_1_2_2, e_1)
     }
-
   }
 
-  test("mkIndexPairSeq") {
+  "mkIndexPairSeq" should "return a sequence of int pairs" in {
     assertResult(
       IndexedSeq((3,4), (3,5), (3,6), (3,7), (3,8), (5,0), (5,1), (5,2), (5,3))
     ) {
@@ -135,7 +218,7 @@ class AnnotatorSpec extends FunSuite {
     }
   }
 
-  test("mkIndexPairMap with indexPairSeq") {
+  "mkIndexPairMap" should "return a map of ints to int pairs, when first argument is an indexPairSeq" in {
 
     assertResult(
       IntMap(0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3)) 
@@ -146,7 +229,7 @@ class AnnotatorSpec extends FunSuite {
     }
   }
 
-  test("mkIndexPairMap with textMap") {
+  "mkIndexPairMap" should "return a map of ints to int pairs, when first argument is a textmap" in {
     assertResult(
       IntMap(0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3)) 
     ) {
@@ -156,13 +239,16 @@ class AnnotatorSpec extends FunSuite {
     }
   }
 
-  test("mkTextWithBreaks") {
-    val textMap = IntMap(3 -> (4, "abcde"), 5 -> (0, "fghi"))
-    val break = ' '
+  val textMap = IntMap(3 -> (4, "abcde"), 5 -> (0, "fghi"))
+  val break = ' '
+  "mkTextWithBreaks" should "return a string of text with extra characters inserted" in {
     assertResult("abcde fghi") {
       val bIndexPairSet = Set(5 -> 0) 
       Annotator.mkTextWithBreaks(textMap, bIndexPairSet, break)
     }
+  }
+
+  it should "only add characters at provided position if the position marks the beginning of a text group" in {
     assertResult("abcde fghi") {
       val bIndexPairSet = Set(3 -> 7, 5 -> 0, 5 -> 3) 
       Annotator.mkTextWithBreaks(textMap, bIndexPairSet, break)
