@@ -277,13 +277,25 @@ object Annotator {
 }
 
 import Annotator._
-class Annotator(
+/**
+  * Private Constructor for Annotator, which stores annotations associated with xml data
+  *
+  * instance has methods and attributes for retrieving annotation and xml data and 
+  * adding new annotations
+  *
+  */
+class Annotator private (
+    /** Original mutable object containing xml data**/
     private val dom: Document, 
+    /** Sequence of AnnotationBlocks **/
     val annotationBlockSeq: IndexedSeq[AnnotationBlock], 
+    /** Map of AnnotationType string to AnnotationInfo **/
     val annotationInfoMap: Map[String, AnnotationInfo],
+    /** Set of AnnotationLink **/
     val annotationLinkSet: Set[AnnotationLink] 
 ) {
 
+  /** Public Constructor **/
   def this(dom: Document) = this(
     dom,
     Annotator.getElements(dom).foldLeft(IndexedSeq[AnnotationBlock]())( (seqAcc, e) => {
@@ -295,16 +307,24 @@ class Annotator(
     HashSet()
   )
 
-  private var _dom: Document = dom.clone()
+  /** Clone of dom that is never passed outside of instance, therefore always unmutated **/
+  private val frozenDom = dom.clone()
 
+  /** Clone of dom for passing outside **/
+  private var _dom: Document = frozenDom.clone()
+
+  /** Function to replace _dom with a certainly clean unmutated dom **/
   final def resetDom(): Unit = {
-    _dom = dom.clone()
+    _dom = frozenDom.clone()
   }
 
+  /** Function to get dom externally **/
   final def getDom(): Document = _dom
 
+  /** Function to get all non empty tspan elements externally **/
   final def getElements(): Iterable[Element] = Annotator.getElements(_dom)
 
+  /** Function to produce a string representation of an AnnotationSpan **/
   private def renderAnnotation(a: AnnotationSpan, length: Int): String = {
 
     val posi = (0 until length).foldLeft("")((stringAcc, i) => {
@@ -362,6 +382,7 @@ class Annotator(
 
   }
 
+  /** Function to produce a string representation of an AnnotationBlock **/
   private def renderAnnotationBlock(bb: AnnotationBlock): String = {
     val next = bb.nextIndex
 
@@ -384,7 +405,7 @@ class Annotator(
     "\n" + bb.annotationMap.values.toList.reverse.distinct.map(renderAnnotation(_, (next - bb.startIndex))).mkString("\n") + "\n" + ruler + "\n "
   }
 
-
+  /** Function to create a new AnnotationBlock with an additional annotationSpan **/
   private def addAnnotation(annotationSpan: AnnotationSpan, annotationBlock: AnnotationBlock): AnnotationBlock = { 
     require(annotationSpan.labelMap.lastKey < annotationBlock.nextIndex, "annotationSpan is too long for annotationBlock")
     annotationSpan.annotationTypeSeq.foldLeft(annotationBlock)((b, annotationType) => {
@@ -393,6 +414,7 @@ class Annotator(
 
   }
   
+  /** Sorted set of the index pair of every character in the non-empty tspans **/
   private val charBIndexPairSet: SortedSet[(Int, Int)] = SortedSet(getElements().toIndexedSeq.zipWithIndex.flatMap { 
     case (e, blockIndex) => 
       (0 until e.getText().size).map(charIndex => {
@@ -401,6 +423,13 @@ class Annotator(
   }: _*)
 
 
+  /** Function to produce a map of int to map of int to label, known as segment  
+    *
+    * It takes an annotation type string, a blockIndex (tspan element offset)
+    * and a charIndex (character offset), and returns the labels and corresponding index pairs
+    * of the first complete segment, one starting with a B and ending with an L,
+    * or just a U, for the provided annotation type string
+    */
   final def getSegment(annotationTypeName: String)(blockIndex: Int, charIndex: Int): Segment = {
 
     val annotationType = annotationInfoMap(annotationTypeName).annotationType
@@ -452,6 +481,15 @@ class Annotator(
 
   }
 
+  /** Function to return an option of 4 ints representing the range of
+    * text that makes up the the first complete string found on or after
+    * the provided indexes that is of the provided annotation type string
+    *
+    * returns None if there is no text matching the provided annotation type or indexes
+    *
+    * the result's four ints represent 
+    * the first block index, first char index, last block index, and last char index, respectively
+    */
   final def getRange(annotationTypeName: String)(blockIndex: Int, charIndex: Int): Option[(Int, Int, Int, Int)] = {
     val segment = getSegment(annotationTypeName)(blockIndex, charIndex)
 
@@ -488,12 +526,21 @@ class Annotator(
     }
   }
 
+  /** Function to return a map of Int to Element based on a range of block indexes (tspan offsets)
+    * 
+    * the result's integer key is the Element's offset out of all the non-empty tspans
+    */
   final def getElementsInRange(blockIndex1: Int, blockIndex2: Int): IntMap[Element] = {
     IntMap((blockIndex1 to blockIndex2).map(blockIndex =>{
       blockIndex -> getElements().toIndexedSeq(blockIndex)
     }): _*)
   }
 
+  /** Function to return a map of Int to Element 
+    * 
+    * the returned elements correspond to annotations that are of the provided annotation type 
+    * and start on or after the provided indexes 
+    */
   final def getElements(annotationTypeName: String)(blockIndex: Int, charIndex: Int): IntMap[Element] = {
     getRange(annotationTypeName)(blockIndex, charIndex) match {
       case None =>
@@ -503,6 +550,11 @@ class Annotator(
     }
   }
 
+  /** Function to return a map of Int to Int String pair based on a index range
+    * 
+    * the returned map's keys are block indexes, and each corresponding value is a char index and 
+    * the text that exists in that block starting from that char index 
+    */
   final def getTextMapInRange(blockIndex1: Int, charIndex1: Int, blockIndex2: Int, charIndex2: Int): IntMap[(Int, String)] = {
     getElementsInRange(blockIndex1, blockIndex2).map { case (blockIndex, e) => 
 
@@ -524,6 +576,11 @@ class Annotator(
   }
 
 
+  /** Function to return a map of Int to Int String pair based on annotation type and minimum starting index pair 
+    * 
+    * the returned map's keys are block indexes, and each corresponding value is a char index and 
+    * the text that exists in that block starting from that char index 
+    */
   final def getTextMap(annotationTypeName: String)(blockIndex: Int, charIndex: Int): IntMap[(Int, String)] = {
     getRange(annotationTypeName)(blockIndex, charIndex) match {
       case None =>
@@ -538,6 +595,13 @@ class Annotator(
     }
   }
 
+  /** Function to return a sorted set of index pairs
+    * 
+    * the result index pairs represent the beginning indexes 
+    * of the last constraint in the constraintRange, filtered down
+    * to indexes that are also annotated as the annotatio type in
+    * the first part of the range
+    */
   final def getBIndexPairSet(constraintRange: ConstraintRange): SortedSet[(Int, Int)] = {
     constraintRange match {
       case Single(CharCon) =>
@@ -581,6 +645,9 @@ class Annotator(
   }
 
 
+  /** Function to return text that exists of the provided annotation type 
+    * on or after each provided index pair 
+    */
   private def getSegmentedText(annoType: String, bIndexPairSet: Set[(Int, Int)]): List[String] = {
     bIndexPairSet.toList.map {
       case (blockBIndex, charBIndex) =>
@@ -589,16 +656,29 @@ class Annotator(
     }
   }
 
+  /** Function to return the text of each complete annotation segment of the provided annotation type **/
   final def getTextByAnnotationType(annoType: String): List[String] = {
     val bIndexPairSet = getBIndexPairSet(Single(SegmentCon(annoType)))
     getSegmentedText(annoType, bIndexPairSet)
   }
 
+  /** Function to return the text of each complete annotation segment of the provided annotation type 
+    * where the text is also part of a segment of the first argument, filterAnnoType
+    */
   final def getFilteredTextByAnnotationType(filterAnnoType: String, annoType: String): List[String] = {
     val bIndexPairSet = getBIndexPairSet(Range(filterAnnoType, SegmentCon(annoType)))
     getSegmentedText(annoType, bIndexPairSet)
   }
 
+  /** Function to produce a new Annotator with additional annotations
+    *
+    * nameCharPairSeq is a sequence new annotation type strings and corresponding chars 
+    * constraintRange specifies the the parts of text the annotations are restricted to
+    * fullLabelMap is a map of index pair to label, which specifies where to add annotation labels 
+    *
+    * labels with index pairs that are outside of the annotatble region defined by the dom and constraintRange
+    * will not be added
+    */
   final def annotate(
       nameCharPairSeq: Seq[(String, Char)], 
       constraintRange: ConstraintRange, 
@@ -657,7 +737,7 @@ class Annotator(
     }
 
     new Annotator(
-      dom,
+      frozenDom,
       _annotationBlockSeq,
       _annotationInfoMap,
       annotationLinkSet
@@ -665,6 +745,11 @@ class Annotator(
     
   }
 
+  /** Function to return a new Annotator that that has the provided links added 
+    *
+    * each link in the input set should be a Map of an annotation type string
+    * to the index pair that has the beginning of one of its segments 
+    */
   final def annotateLink(_annotationLinkSet: Set[AnnotationLink]): Annotator = {
 
     val bIndexSetMap = _annotationLinkSet.flatMap(_.keys).map(annoTypeStr => {
@@ -672,7 +757,7 @@ class Annotator(
     }).toMap
 
     new Annotator(
-      dom, annotationBlockSeq, annotationInfoMap,
+      frozenDom, annotationBlockSeq, annotationInfoMap,
       annotationLinkSet ++ _annotationLinkSet.filter(annoLink => {
         annoLink.foldLeft(true) {
           case (boolAcc, (annoTypeStr, indexPair)) =>
@@ -697,9 +782,10 @@ class Annotator(
     }
   }
 
+  /** Function to write a string representation of the Annotator instance to the provided file path**/
   final def write(filePath: String): Annotator = {
 
-    val writableDom = _dom.clone()
+    val writableDom = frozenDom.clone()
     Annotator.getElements(writableDom).zipWithIndex.foreach { case (e, i) => {
       val block = annotationBlockSeq(i)
       e.setAttribute("bio", renderAnnotationBlock(block))
