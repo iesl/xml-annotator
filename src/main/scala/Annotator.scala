@@ -25,7 +25,10 @@ import org.jdom2.output.XMLOutputter
 import org.jdom2.output.LineSeparator
 import org.jdom2.output.support.AbstractXMLOutputProcessor
 
-/** Functions and Constructors for transforming Annotator instance values **/
+/** Container of functions and constructors 
+  *
+  * It is used by Annotator instances and to be used on results of Annotator isntances 
+  */
 object Annotator {
 
   type Segment = IntMap[IntMap[Label]]
@@ -33,9 +36,9 @@ object Annotator {
   type ElementFilter = org.jdom2.filter.ElementFilter
   type AnnotationLink = Map[String, (Int, Int)]
 
-  /** Constructors for Label
+  /** Constructors for labels
     *
-    * BIOLU represent a text character's position in an annotation
+    * They are used by Annotator instances for annotating characters of text
     */
   sealed trait Label
   case class B(c: Char) extends Label
@@ -44,41 +47,88 @@ object Annotator {
   case object L extends Label
   case class U(c: Char) extends Label
 
-  /** Constructor for AnnotationType **/
+  /** Constructor for annotation types 
+    * 
+    * It is used by Annotator instances to correlate an annotation type name 
+    * with a range of constraints
+    */
   case class AnnotationType(name: String, c: Char, constraintRange: ConstraintRange)
 
 
-  /** Constructors for Constraint
-    *
-    * CharCon is a constraint on the primitive unit of characters 
-    * SegmentCon is a constraint on a segment of a specified annotation type
-    */
   sealed trait Constraint
+  /** Constructor for char constraints
+    *
+    * It is used by Annotator instances to constrain labels of annotation types 
+    * to the the primitive unit of characters 
+    */
   case object CharCon extends Constraint
+  /** Constructor to segment constraints 
+    * 
+    * It is used by Annotator instances to constrain labels of annotation types
+    * to the the B or U labels of another annotation type
+    */
   case class SegmentCon(annotationTypeName: String) extends Constraint
 
-  /** Constructors for ConstraintRange 
-    *
-    * Range takes an annotation type string and a constraint such that
-    * the annotation type is associated with the constraint 
-    * or is associated with a SegmentCon constraint whose type 
-    * has these same qualities just mentioned of the initial annotation type 
-    */
+
+
   sealed trait ConstraintRange
+  /** Constructor to create a constraint range
+    *
+    * It is used by Annotator instances to hold an annotation type string 
+    * and a constraint such that the annotation type is constrained by the constraint 
+    * or is constrained by a SegmentCon whose annotation type * has the same qualities 
+    * just mentioned of the initial annotation type string
+    */
   case class Range(annoTypeName: String, con: Constraint) extends ConstraintRange
+  /** Constructor to make a constraint range consisting of a single cosntraint **/
   case class Single(constraint: Constraint) extends ConstraintRange
 
-  /** Constructor for AnnotationSpan **/
+  /** Constructor for annotation spans 
+    *
+    * It is used in Annotator instances to correlate a char index 
+    * with labels that are of a narrow selection of annotation types
+    * where a char index is the is the position of a character 
+    * out of the characters in a tspan
+    */
   case class AnnotationSpan(
-    labelMap: IntMap[Label], 
-    annotationTypeSeq: Seq[AnnotationType]
+      labelMap: IntMap[Label], 
+      /** sequence of annotation types that can be associated with labels in labelMap **/
+      annotationTypeSeq: Seq[AnnotationType]
   )
 
-  /** Constructor for AnnotationInfo **/
-  case class AnnotationInfo(annotationType: AnnotationType, bIndexPairSortedSet: SortedSet[(Int, Int)])
+  /** Constructor for annotation infos 
+    *
+    * It is used by Annotator instances to maintain an association 
+    * between sets of index pairs - (block index, char index) - where each has a B or U label
+    * and annotation types 
+    */
+  case class AnnotationInfo(
+      annotationType: AnnotationType, 
+      bIndexPairSortedSet: SortedSet[(Int, Int)]
+  )
 
-  /** Constructor for AnnotationBlock **/
-  case class AnnotationBlock(startIndex: Int, nextIndex: Int, annotationMap: ListMap[AnnotationType, AnnotationSpan])
+  /** Constructor for annotation blocks 
+    *
+    * It used by Annotator instances to hold 
+    * the position of first character of the text of a particular tspan element 
+    * out of all the characters in the document as the startIndex
+    * and the next tspan's startIndex as the nextIndex
+    * and to hold a map of annotation types to annotation spans that exist
+    * for the same tspan element
+    **/
+  case class AnnotationBlock(
+      startIndex: Int, 
+      nextIndex: Int, 
+      annotationMap: ListMap[AnnotationType, AnnotationSpan]
+  )
+
+  /** Constructor for position groups 
+    *
+    * It used by Annotator instances to hold 
+    * the x and y positions of every character in a particular tspan
+    * and the x position of the right side of the last character  
+    **/
+  case class PositionGroup(xs: List[Double], endX: Double, ys: List[Double]) 
 
   /** Function to get all non-empty tspan elements **/
   private def getElements(dom: Document): Iterable[Element] = {
@@ -167,7 +217,6 @@ object Annotator {
     }
   }
 
-  case class PositionGroup(xs: List[Double], endX: Double, ys: List[Double]) 
 
   /** Function to get source element's x and y positions in its ancestor's coordinate system **/
   def getTransformedCoords(sourceE: Element, ancestorE: Element): PositionGroup = {
@@ -200,12 +249,11 @@ object Annotator {
 
   }
 
-  /** Function to make a sequence of int pairs from a map of int to int and string  
+  /** Function to make a sequence of int pairs from a map of ints to int and string pairs 
     *
     * example:
     * input: { 3 -> (4, "abcde"), 5 -> (0, "fghi") }
     * output: [ (3,4), (3,5), (3,6), (3,7), (3,8), (5,0), (5,1), (5,2), (5,3) ]  
-    *
     */
   final def mkIndexPairSeq(textMap: IntMap[(Int, String)]): IndexedSeq[(Int, Int)] = {
     textMap.toIndexedSeq.flatMap {
@@ -225,7 +273,6 @@ object Annotator {
     * input: indexPairSeq = [ (3,4), (3,5), (3,6), (3,7), (3,8), (5,0), (5,1), (5,2), (5,3) ]  
     *        bIndexPairSet = { (3,6), (5,1) } 
     * output: { 0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3) }  
-    *
     */
   final def mkIndexPairMap(indexPairSeq: IndexedSeq[(Int,Int)], bIndexPairSet: Set[(Int, Int)]): IntMap[(Int, Int)] = {
     indexPairSeq.foldLeft(IntMap[(Int,Int)]()) {
@@ -245,7 +292,6 @@ object Annotator {
     * input: textMap = { 3 -> (4, "abcde"), 5 -> (0, "fghi") }
     *        bIndexPairSet = { (3,6), (5,1) } 
     * output: { 0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3) }  
-    *
     */
   final def mkIndexPairMap(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)]): IntMap[(Int, Int)] = {
     val indexPairSeq = mkIndexPairSeq(textMap)
@@ -259,7 +305,6 @@ object Annotator {
     *        bIndexPairSet = { (5,0) } 
     *        break = ' '
     * output: "abcde fghi"
-    *
     */
   final def mkTextWithBreaks(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)], break: Char = '\n'): String = {
     textMap.foldLeft("") {
@@ -282,20 +327,32 @@ import Annotator._
   *
   * instance has methods and attributes for retrieving annotation and xml data and 
   * adding new annotations
-  *
   */
 class Annotator private (
     /** Original mutable object containing xml data**/
     private val dom: Document, 
-    /** Sequence of AnnotationBlocks **/
+    /** Sequence of annotation blocks 
+      *
+      * Each AnnotationBlock corresponds to a tspan element
+      * through the equality of an index of this sequence (block index) and 
+      * the position of an element in the result of getElements()
+      */
     val annotationBlockSeq: IndexedSeq[AnnotationBlock], 
-    /** Map of AnnotationType string to AnnotationInfo **/
+    /** map of annotation type strings to annotation infos **/
     val annotationInfoMap: Map[String, AnnotationInfo],
-    /** Set of AnnotationLink **/
+    /** Set of annotation links 
+      *
+      * Each AnnotationLink is a map of annotation type strings to an index pairs
+      * where the index pair has the begin (B) or unit (U) label of the annotation type
+      */
     val annotationLinkSet: Set[AnnotationLink] 
 ) {
 
-  /** Public Constructor **/
+  /** Public constructor 
+    *
+    * It populates the annotation block sequence by creating
+    * an annotation block for every non empty tspan it finds
+    */
   def this(dom: Document) = this(
     dom,
     Annotator.getElements(dom).foldLeft(IndexedSeq[AnnotationBlock]())( (seqAcc, e) => {
@@ -307,7 +364,7 @@ class Annotator private (
     HashSet()
   )
 
-  /** Clone of dom that is never passed outside of instance, therefore always unmutated **/
+  /** Clone of dom, who and whose elements are never passed outside of instance and who is always unmutated **/
   private val frozenDom = dom.clone()
 
   /** Clone of dom for passing outside **/
@@ -323,6 +380,9 @@ class Annotator private (
 
   /** Function to get all non empty tspan elements externally **/
   final def getElements(): Iterable[Element] = Annotator.getElements(_dom)
+
+  /** Function to get all non empty tspan elements internally **/
+  private def getFrozenElements(): Iterable[Element] = Annotator.getElements(frozenDom)
 
   /** Function to produce a string representation of an AnnotationSpan **/
   private def renderAnnotation(a: AnnotationSpan, length: Int): String = {
@@ -414,8 +474,11 @@ class Annotator private (
 
   }
   
-  /** Sorted set of the index pair of every character in the non-empty tspans **/
-  private val charBIndexPairSet: SortedSet[(Int, Int)] = SortedSet(getElements().toIndexedSeq.zipWithIndex.flatMap { 
+  /** Sorted set of the index pair (block index and char index), of every character in the non-empty tspans 
+    * where the block index is the position of a particular tspan out of all non-empty tspans and
+    * where a char index is the position of a character out of the characters in the particular tspan
+    */
+  private val charBIndexPairSet: SortedSet[(Int, Int)] = SortedSet(getFrozenElements().toIndexedSeq.zipWithIndex.flatMap { 
     case (e, blockIndex) => 
       (0 until e.getText().size).map(charIndex => {
         blockIndex -> charIndex
@@ -423,10 +486,10 @@ class Annotator private (
   }: _*)
 
 
-  /** Function to produce a map of int to map of int to label, known as segment  
+  /** Function to produce a map of ints to maps of ints to labels, known as segment  
     *
-    * It takes an annotation type string, a blockIndex (tspan element offset)
-    * and a charIndex (character offset), and returns the labels and corresponding index pairs
+    * It takes an annotation type string, a block index
+    * and a char index, and returns the labels and corresponding index pairs
     * of the first complete segment, one starting with a B and ending with an L,
     * or just a U, for the provided annotation type string
     */
@@ -526,7 +589,7 @@ class Annotator private (
     }
   }
 
-  /** Function to return a map of Int to Element based on a range of block indexes (tspan offsets)
+  /** Function to return a map of ints to elements based on a range of block indexes (non-empty tspan position)
     * 
     * the result's integer key is the Element's offset out of all the non-empty tspans
     */
@@ -536,7 +599,7 @@ class Annotator private (
     }): _*)
   }
 
-  /** Function to return a map of Int to Element 
+  /** Function to return a map of ints to elements 
     * 
     * the returned elements correspond to annotations that are of the provided annotation type 
     * and start on or after the provided indexes 
@@ -550,7 +613,7 @@ class Annotator private (
     }
   }
 
-  /** Function to return a map of Int to Int String pair based on a index range
+  /** Function to return a map of ints to int string pairs based on a index range
     * 
     * the returned map's keys are block indexes, and each corresponding value is a char index and 
     * the text that exists in that block starting from that char index 
@@ -576,7 +639,7 @@ class Annotator private (
   }
 
 
-  /** Function to return a map of Int to Int String pair based on annotation type and minimum starting index pair 
+  /** Function to return a map of int to int string pairs based on annotation type and minimum starting index pair 
     * 
     * the returned map's keys are block indexes, and each corresponding value is a char index and 
     * the text that exists in that block starting from that char index 
@@ -674,7 +737,7 @@ class Annotator private (
     *
     * nameCharPairSeq is a sequence new annotation type strings and corresponding chars 
     * constraintRange specifies the the parts of text the annotations are restricted to
-    * fullLabelMap is a map of index pair to label, which specifies where to add annotation labels 
+    * fullLabelMap specifies where to add annotation labels 
     *
     * labels with index pairs that are outside of the annotatble region defined by the dom and constraintRange
     * will not be added
