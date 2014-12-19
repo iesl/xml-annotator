@@ -4,6 +4,8 @@ import org.scalatest._
 
 import scala.collection.immutable.IntMap
 import scala.collection.immutable.Set
+import scala.collection.immutable.Map
+import scala.collection.immutable.ListMap
 
 import org.jdom2.filter.ElementFilter
 import org.jdom2.Element
@@ -111,13 +113,13 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
-  "xs" should  "raise exception if element has no attribtue xs" in {
+  "xs" should  "raise exception if element has no attribute x" in {
     intercept[NullPointerException] {
       Annotator.y(e_1_1)
     }
   }
 
-  it should "return a list of doubles if element has attribute xs with value as space separated list of numbers" in {
+  it should "return a list of doubles if element has attribute x with value as space separated list of numbers" in {
     assertResult(List(0, 8.88, 15.54, 29.98, 35.54, 45.54, 51.1, 61.1, 71.1, 81.1, 91.1, 96.1)) {
       Annotator.xs(e_1_1_1)
     }
@@ -152,7 +154,7 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
-  "getTransformedCoords" should "raise exception if the first argument is missing y, endX, or xs attributes" in {
+  "getTransformedCoords" should "raise exception if the first argument is missing y, endX, or x attributes" in {
     intercept[NullPointerException] {
       Annotator.getTransformedCoords(e_1_1, e)
     }
@@ -253,5 +255,186 @@ class AnnotatorSpec extends FlatSpec {
       Annotator.mkTextWithBreaks(textMap, bIndexPairSet, break)
     }
   }
+
+
+  //Annotator Instances
+
+  import Annotator._
+  val annotator = new Annotator(dom)
+
+  val quailTable = (annotator.getBIndexPairSet(Single(CharCon)).zipWithIndex.toMap.map {
+    case (indexPair, i) =>
+      val charIndex = indexPair._2
+      indexPair -> (if (i % 4 == 0) {
+        B('q')
+      } else if ((i - 3) % 4 == 0) {
+        L
+      } else {
+        I
+      })
+  }) + ((2,5) -> U('q'))
+
+  val annotator2 = annotator.annotate(List("quail" -> 'q'), Single(CharCon), quailTable)
+
+  val falconTable: Map[(Int, Int), Label] = annotator2.getBIndexPairSet(Single(SegmentCon("quail")))
+    .filter(indexPair => indexPair._2 % 8 == 0)
+    .zipWithIndex.toMap.map {
+      case (indexPair, i) =>
+        val charIndex = indexPair._2
+        indexPair -> (if (i % 2 == 0) {
+          B('f')
+        } else if ((i - 1) % 2 == 0) {
+          L
+        } else {
+          I
+        })
+    }
+
+
+  val annotator3 = annotator2.annotate(List("falcon" -> 'f'), Single(SegmentCon("quail")), falconTable)
+
+
+  val penguinTable = annotator3.getBIndexPairSet(Single(SegmentCon("quail")))
+    .filter(indexPair => indexPair._2 % 6 == 0)
+    .map(ip => ip -> U('p')).toMap
+
+  val annotator4 = annotator3.annotate(List("penguin" -> 'p'), Single(SegmentCon("quail")), penguinTable)
+
+
+  "new Annotator" should "create an Annotator instance with annotationBlockSeq populated without any annotations" in {
+
+    val emptyMap = ListMap[AnnotationType, AnnotationSpan]()
+    val expectedResults = IndexedSeq(
+        AnnotationBlock(0,12, emptyMap),
+        AnnotationBlock(12,27, emptyMap), 
+        AnnotationBlock(27,33, emptyMap)
+   )
+
+    (0 to 2).map(i => {
+      val expected = expectedResults(i)
+      val actual =  annotator.annotationBlockSeq(i)
+      assertResult(expected)(actual)
+    })
+
+  }
+
+  it should "create annotator such that the next index minus start index of each annotation block " + 
+  "equals the text length of the corresponding element produced by getElements() " in {
+
+    val es = annotator.getElements()
+
+    es.toIndexedSeq.zipWithIndex.map {
+      case (e, i) =>
+        val annoBlock = annotator.annotationBlockSeq(i)
+        val expected = e.getText().size 
+        val actual = annoBlock.nextIndex - annoBlock.startIndex
+        assertResult(expected)(actual)
+    }
+
+  }
+
+  "annotate" should "raise exception if called with an annotation type that already exists" in {
+    val table = annotator.getBIndexPairSet(Single(CharCon)).map(_ -> U('q')).toMap
+    intercept[AssertionError] {
+      annotator4.annotate(List("quail" -> 'q'), Single(CharCon), table)
+    }
+  }
+
+  it should "raise exception if called with a constraint range containing an annotation type does not exist in annotator" in {
+    intercept[NoSuchElementException] {
+      annotator.annotate(List("quail" -> 'q'), Single(SegmentCon("xyz")), quailTable)
+    }
+  }
+
+
+  it should "raise exception if called with a constraint range where" +
+  " the range's annotation type does not descend from the constraint" in {
+    val table = annotator.getBIndexPairSet(Single(CharCon)).map(_ -> U('x')).toMap
+    intercept[IllegalArgumentException] {
+      annotator4.annotate(List("xyz" -> 'x'), Range("falcon", SegmentCon("penguin")), table)
+    }
+  }
+
+
+  it should "create an Annotator instance with annotationBlockSeq populated with some annotations" in {
+
+    val expected = {
+      AnnotationBlock(
+          0,12,
+          ListMap(
+              AnnotationType("quail", 'q', Single(CharCon)) -> 
+              AnnotationSpan(
+                  IntMap(
+                      0 -> B('q'), 1 -> I, 2 -> I, 3 -> L, 
+                      4 -> B('q'), 5 -> I, 6 -> I, 7 -> L, 
+                      8 -> B('q'), 9 -> I, 10 -> I, 11 -> L
+                  ),
+                  Seq(AnnotationType("quail", 'q', Single(CharCon)))
+              )
+          )
+      )
+    }
+
+    val actual = annotator2.annotationBlockSeq(0)
+    assertResult(expected)(actual)
+  }
+
+
+  "getBIndexPairSet" should "raise an exception if the constraint range specifies a non existent annotation type" in {
+    intercept[NoSuchElementException] {
+      annotator.getBIndexPairSet(Range("xyz", CharCon))
+    }
+  }
+
+  it should "raise exception if range's annotation type does not descend from the constraint" in {
+
+    intercept[IllegalArgumentException] {
+      annotator4.getBIndexPairSet(Range("falcon", SegmentCon("penguin")))
+    }
+  }
+
+  it should "produce all index pairs if the constraint is CharCon" in {
+    assertResult(Set(
+        (0,0), (0,1), (0,2), (0,3), (0,4), (0,5), (0,6), 
+        (0,7), (0,8), (0,9), (0,10), (0,11), (1,0), 
+        (1,1), (1,2), (1,3), (1,4), (1,5), (1,6), (1,7), 
+        (1,8), (1,9), (1,10), (1,11), (1,12), (1,13), 
+        (1,14), (2,0), (2,1), (2,2), (2,3), (2,4), (2,5)
+    )) {
+      annotator.getBIndexPairSet(Single(CharCon))
+    }
+  }
+
+  it should "produce index pairs on Single of segment con of existing annotation type" in {
+    assertResult(Set((0,0), (0,4), (0,8), (1,0), (1,4), (1,8), (1,12), (2,1), (2,5))) {
+      annotator2.getBIndexPairSet(Single(SegmentCon("quail")))
+    }
+  }
+
+  it should "produce index pairs on a Range where the annotation type descends from the constraint" in {
+
+    assertResult(Set((0,0), (1,0))) {
+      annotator3.getBIndexPairSet(Single(SegmentCon("falcon")))
+    }
+
+    assertResult(Set((0,0), (0,8), (1,0), (1,8))) {
+      annotator3.getBIndexPairSet(Range("falcon", SegmentCon("quail")))
+    }
+
+    assertResult(Set(
+        (0,0), (0,1), (0,2), (0,3), (0,8), (0,9), (0,10), (0,11),
+        (1,0), (1,1), (1,2), (1,3), (1,8), (1,9), (1,10), (1,11)
+    )) {
+      annotator3.getBIndexPairSet(Range("falcon", CharCon))
+    }
+
+    assertResult(Set((0,0), (1,0), (1,12))) {
+      annotator4.getBIndexPairSet(Single(SegmentCon("penguin")))
+    }
+  }
+
+
+
+
 
 }
