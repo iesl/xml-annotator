@@ -263,7 +263,7 @@ object Annotator {
   }
 
 
-  /** Function to make a map of ints to int pairs  
+  /** Function to make a map of ints to int pairs from sequence and set of int pairs 
     *
     * param indexPairSeq specifies the original position of every int pair
     * param bIndexPairSet specifies the int pair whose position is to be incremented 
@@ -594,6 +594,7 @@ class Annotator private (
     * the result's integer key is the Element's offset out of all the non-empty tspans
     */
   final def getElementsInRange(blockIndex1: Int, blockIndex2: Int): IntMap[Element] = {
+    require(blockIndex1 <= blockIndex2)
     IntMap((blockIndex1 to blockIndex2).map(blockIndex =>{
       blockIndex -> getElements().toIndexedSeq(blockIndex)
     }): _*)

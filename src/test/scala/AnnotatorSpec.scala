@@ -64,7 +64,7 @@ class AnnotatorSpec extends FlatSpec {
       .setAttribute("endX", "112.43")
       .setAttribute("y", "0")
       .setAttribute("font-size", "17.2154px")
-      .setText("abcdefghijklmno")
+      .setText("mnopqrstuvwxyz1")
     e_1_2.addContent(_e)
     _e
   }
@@ -75,7 +75,7 @@ class AnnotatorSpec extends FlatSpec {
       .setAttribute("endX", "191.22")
       .setAttribute("y", "19.91")
       .setAttribute("font-size", "17.2154px")
-      .setText("abcdef")
+      .setText("234567")
     e_1_2.addContent(_e)
     _e
   }
@@ -433,8 +433,203 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
+  "getSegment" should "raise exception if annotation type does not exist" in {
+    intercept[NoSuchElementException] {
+      annotator4.getSegment("xyz")(0, 0)
+    }
+  }
+
+  it should "produce block indexes associated with char indexes associated with labels\n" +
+  "where each label is of the annotation type and the first label is a B or U that\n" + 
+  "starts on or after the provided index pair" in {
+
+    assertResult(IntMap(0 -> IntMap(0 -> B('q'), 1 -> I, 2 -> I, 3 -> L))) {
+      annotator4.getSegment("quail")(0, 0)
+    }
+
+    assertResult(IntMap(0 -> IntMap(4 -> B('q'), 5 -> I, 6 -> I, 7 -> L))) {
+      annotator4.getSegment("quail")(0, 2)
+    }
+
+    assertResult(IntMap(0 -> IntMap(4 -> B('q'), 5 -> I, 6 -> I, 7 -> L))) {
+      annotator4.getSegment("quail")(0, 4)
+    }
+
+    assertResult(IntMap(1 -> IntMap(0 -> B('f'), 8 -> L))) {
+      annotator4.getSegment("falcon")(1, 0)
+    }
+
+    assertResult(IntMap(1 -> IntMap(0 -> U('p')))) {
+      annotator4.getSegment("penguin")(0, 2)
+    }
+
+  }
+
+  "getRange" should "produce a range of index pairs from the first B or U of the annotation type\n" +
+  "on or after the provided index pair to the U or L of the annotation type \n" +
+  "that the provided annotation type ultimately descends from (i.e. ultimately is constrained by)" in {
+
+    assertResult(Some((0,0,0,3))) {
+      annotator4.getRange("quail")(0, 0)
+    }
+
+    assertResult(Some(0,4,0,7)) {
+      annotator4.getRange("quail")(0, 2)
+    }
+
+    assertResult(Some(0,4,0,7)) {
+      annotator4.getRange("quail")(0, 4)
+    }
+
+    assertResult(Some(1,0,1,11)) {
+      annotator4.getRange("falcon")(1, 0)
+    }
+
+    assertResult(Some(1,0,1,3)) {
+      annotator4.getRange("penguin")(0, 2)
+    }
+  }
+
+  "getElementsInRange" should "raise exception if a provided block index does not exist" in {
+    intercept[IndexOutOfBoundsException] {
+      annotator4.getElementsInRange(1, 5)
+    }
+
+    intercept[IndexOutOfBoundsException] {
+      annotator4.getElementsInRange(-2, 1)
+    }
+
+  }
+
+  it should "raise exception if the second block index is lesss than the first" in {
+    intercept[IllegalArgumentException] {
+      annotator4.getElementsInRange(2, 1).mapValues(_.getText())
+    }
+  }
+
+  it should "produce a map of block indexes to elements\n" +
+  "for whatever elements fall in the provided range of block indexes" in {
+
+    assertResult(IntMap(0 -> "abcdefghijkl")) {
+      annotator4.getElementsInRange(0, 0).mapValues(_.getText())
+    }
+
+    assertResult(IntMap(0 -> "abcdefghijkl", 1 -> "mnopqrstuvwxyz1", 2 -> "234567")) {
+      annotator4.getElementsInRange(0, 2).mapValues(_.getText())
+    }
+
+    assertResult(IntMap(1 -> "mnopqrstuvwxyz1", 2 -> "234567")) {
+      annotator4.getElementsInRange(1, 2).mapValues(_.getText())
+    }
+
+  }
+
+  "getElements" should "produce elements that have a B and L or a U of the provided annotation\n" +
+  "on or after the provided block and char index" in {
+    assertResult(IntMap(0 -> "abcdefghijkl")) {
+      annotator4.getElements("quail")(0, 0).mapValues(_.getText())
+    }
+
+    assertResult(IntMap(0 -> "abcdefghijkl")) {
+      annotator4.getElements("quail")(0, 2).mapValues(_.getText())
+    }
+
+    assertResult(IntMap(0 -> "abcdefghijkl")) {
+      annotator4.getElements("quail")(0, 4).mapValues(_.getText())
+    }
+
+    assertResult(IntMap(1 -> "mnopqrstuvwxyz1")) {
+      annotator4.getElements("falcon")(1, 0).mapValues(_.getText())
+    }
+
+    assertResult(IntMap(1 -> "mnopqrstuvwxyz1")) {
+      annotator4.getElements("penguin")(0, 2).mapValues(_.getText())
+    }
+  }
+
+  "getTextMapInRange" should "produce a map of block indexes to char index with text pair\n" +
+  "where the char index is that of the first char the associated text and the text exists in the provided range" in {
+
+    assertResult(IntMap(0 -> (0,"abcd"))) {
+      annotator4.getTextMapInRange(0,0,0,3)
+    }
+
+    assertResult(IntMap(0 -> (4,"efgh"))) {
+      annotator4.getTextMapInRange(0,4,0,7)
+    }
+
+    assertResult(IntMap(1 -> (0,"mnopqrstuvwx"))) {
+      annotator4.getTextMapInRange(1,0,1,11)
+    }
+
+    assertResult(IntMap(1 -> (0,"mnop"))) {
+      annotator4.getTextMapInRange(1,0,1,3)
+    }
+
+    assertResult(IntMap(1 -> (6,"stuvwxyz1"), 2 -> (0,"2345"))) {
+      annotator4.getTextMapInRange(1,6,2,3)
+    }
+
+  }
 
 
+  "getTextMap" should "produce a text map where the text and indexes have labels of the provided annotation type\n" +
+  "on or after the provided indexes where the first label is B or U and the last is U or L" in {
+    assertResult(IntMap(0 -> (0,"abcd"))) {
+      annotator4.getTextMap("quail")(0, 0)
+    }
 
+    assertResult(IntMap(0 -> (4,"efgh"))) {
+      annotator4.getTextMap("quail")(0, 2)
+    }
+
+    assertResult(IntMap(0 -> (4,"efgh"))) {
+      annotator4.getTextMap("quail")(0, 4)
+    }
+
+    assertResult(IntMap(1 -> (0,"mnopqrstuvwx"))) {
+      annotator4.getTextMap("falcon")(1, 0)
+    }
+
+    assertResult(IntMap(1 -> (0,"mnop"))) {
+      annotator4.getTextMap("penguin")(0, 2)
+    }
+  }
+
+
+  "getTextByAnnotationType" should "produce a list of text strings, where each string is the text of a segment\n" +
+  "of the provided annotation type" in {
+    assertResult(List("abcd", "efgh", "ijkl", "mnop", "qrst", "uvwx", "yz12", "3456", "7")) {
+      annotator4.getTextByAnnotationType("quail")
+    }
+
+    assertResult(List("abcdefghijkl", "mnopqrstuvwx")) {
+      annotator4.getTextByAnnotationType("falcon")
+    }
+
+    assertResult(List("abcd", "mnop", "yz12")) {
+      annotator4.getTextByAnnotationType("penguin")
+    }
+  }
+
+  "getFilteredTextByAnnotationType" should "raise exception if called with a first annotation type" +
+  " that is not eventually constrained by the second annotation type" in {
+    intercept[IllegalArgumentException] {
+      annotator4.getFilteredTextByAnnotationType("penguin", "falcon")
+    }
+  }
+
+  it should "produce a list of text strings, where each string is the text of a segment\n" +
+  "of the second annotation provided and is also part of a segment of the first annotation type" in {
+
+    assertResult(List("abcd", "ijkl", "mnop", "uvwx")) {
+      annotator4.getFilteredTextByAnnotationType("falcon", "quail")
+    }
+
+    assertResult(List("abcd", "mnop", "yz12")) {
+      annotator4.getFilteredTextByAnnotationType("penguin", "quail")
+    }
+
+  }
 
 }
