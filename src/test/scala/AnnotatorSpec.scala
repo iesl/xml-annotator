@@ -80,13 +80,13 @@ class AnnotatorSpec extends FlatSpec {
     _e
   }
 
-  "fontSize" should "raise exception if element has no attribute font-size" in {
+  "fontSize" should "raise an exception if the provided element has no attribute font-size" in {
     intercept[NullPointerException] {
       Annotator.fontSize(e)
     }
   }
 
-  it should "return a double value if element has attribute font-size with value \"[some numer]px\"" in {
+  it should "return a double if the element has attribute font-size with value \"[some numer]px\"" in {
     assertResult(20) {
       Annotator.fontSize(e_1_1_1)
     }
@@ -96,13 +96,13 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  "y" should "raise exception if element has no attribtue y" in {
+  "y" should "raise an exception if the provided element has no attribtue y" in {
     intercept[NullPointerException] {
       Annotator.y(e_1_1)
     }
   }
 
-  it should "return a double value if element has attribute y with numeric value" in {
+  it should "return a double if the element has attribute y with a numberic value" in {
     assertResult(0) {
       Annotator.y(e_1_1_1)
     }
@@ -113,37 +113,45 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
-  "xs" should  "raise exception if element has no attribute x" in {
+  "xs" should  "raise an exception if the provided element has no attribute x" in {
     intercept[NullPointerException] {
       Annotator.y(e_1_1)
     }
   }
 
-  it should "return a list of doubles if element has attribute x with value as space separated list of numbers" in {
+  it should "return a list of doubles if the element has attribute x with the value as a space separated list of numbers" in {
     assertResult(List(0, 8.88, 15.54, 29.98, 35.54, 45.54, 51.1, 61.1, 71.1, 81.1, 91.1, 96.1)) {
       Annotator.xs(e_1_1_1)
     }
   }
 
-  "commonAncestor" should "raise exception if either argument is null" in {
+  "commonAncestor" should "raise an exception if either argument is null" in {
     intercept[IllegalArgumentException] {
       Annotator.commonAncestor(null, null)
     }
+
+    intercept[IllegalArgumentException] {
+      Annotator.commonAncestor(null, e_1)
+    }
+
+    intercept[IllegalArgumentException] {
+      Annotator.commonAncestor(e_1, null)
+    }
   }
 
-  it should "raise exception if arguments are in different trees" in {
+  it should "raise an exception if arguments are in different trees" in {
     intercept[IllegalArgumentException] {
       Annotator.commonAncestor(new Element("a"), new Element("b"))
     }
   }
 
-  it should "raise exception if arguments are of different depths in the same tree" in {
+  it should "raise an exception if arguments have different depths in the same tree" in {
     intercept[IllegalArgumentException] {
       Annotator.commonAncestor(e_1_1, e_1_2_1)
     }
   }
 
-  it should "return the most recent common ancestor, otherwise" in {
+  it should "return the most recent common ancestor" in {
     assertResult(e_1_2) {
       Annotator.commonAncestor(e_1_2_1, e_1_2_2)
     }
@@ -154,13 +162,20 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
-  "getTransformedCoords" should "raise exception if the first argument is missing y, endX, or x attributes" in {
+  "getTransformedCoords" should "raise an exception if the first argument is missing attributes y, endX, or x" in {
     intercept[NullPointerException] {
       Annotator.getTransformedCoords(e_1_1, e)
     }
   }
 
-  it should "return a PositionGroup, otherwise" in {
+  it should "raise an exception if second argument is not an ancestor of the first" in {
+    intercept[IllegalArgumentException] {
+      Annotator.getTransformedCoords(e_1_2_1, e_1_1)
+    }
+  }
+
+  it should "return a PositionGroup if provided source element has attributes y, endX and x\n" +
+  "and the second argument is an ancestor of the first" in {
     assertResult(
       Annotator.PositionGroup(
         List(32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0),
@@ -219,7 +234,7 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  "mkIndexPairMap" should "return a map of ints to int pairs, when first argument is an indexPairSeq" in {
+  "mkIndexPairMap" should "return a map of ints to int pairs, when the first argument is an int pair seq" in {
 
     assertResult(
       IntMap(0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3)) 
@@ -230,7 +245,7 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  it should "return a map of ints to int pairs, when first argument is a textmap" in {
+  it should "return a map of ints to int pairs, when first argument is a text map" in {
     assertResult(
       IntMap(0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3)) 
     ) {
@@ -249,7 +264,7 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  it should "only add characters at provided position if the position marks the beginning of a text group" in {
+  it should "only add characters at specified positions if the positions mark the beginning of a text group" in {
     assertResult("abcde fghi") {
       val bIndexPairSet = Set(3 -> 7, 5 -> 0, 5 -> 3) 
       Annotator.mkTextWithBreaks(textMap, bIndexPairSet, break)
@@ -318,7 +333,7 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
-  it should "create annotator such that the next index minus start index of each annotation block " + 
+  it should "create an annotator such that the next index minus the start index of each annotation block\n" + 
   "equals the text length of the corresponding element produced by getElements() " in {
 
     val es = annotator.getElements()
@@ -333,22 +348,23 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
-  "annotate" should "raise exception if called with an annotation type that already exists" in {
+  "annotate" should "raise an exception if called with an annotation type that already exists" in {
     val table = annotator.getBIndexPairSet(Single(CharCon)).map(_ -> U('q')).toMap
     intercept[AssertionError] {
       annotator4.annotate(List("quail" -> 'q'), Single(CharCon), table)
     }
   }
 
-  it should "raise exception if called with a constraint range containing an annotation type does not exist in annotator" in {
+  it should "raise an exception if called with a constraint range containing an annotation\n" +
+  "type that does not exist in the annotator" in {
     intercept[NoSuchElementException] {
       annotator.annotate(List("quail" -> 'q'), Single(SegmentCon("xyz")), quailTable)
     }
   }
 
 
-  it should "raise exception if called with a constraint range where" +
-  " the range's annotation type does not descend from the constraint" in {
+  it should "raise an exception if called with a constraint range where\n" +
+  "the range's annotation type does not descend from the constraint" in {
     val table = annotator.getBIndexPairSet(Single(CharCon)).map(_ -> U('x')).toMap
     intercept[IllegalArgumentException] {
       annotator4.annotate(List("xyz" -> 'x'), Range("falcon", SegmentCon("penguin")), table)
@@ -386,7 +402,7 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  it should "raise exception if range's annotation type does not descend from the constraint" in {
+  it should "raise an exception if the range's annotation type does not descend from the constraint" in {
 
     intercept[IllegalArgumentException] {
       annotator4.getBIndexPairSet(Range("falcon", SegmentCon("penguin")))
@@ -405,13 +421,13 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  it should "produce index pairs on Single of segment con of existing annotation type" in {
+  it should "produce index pairs on a single of segment constraint of existing annotation type" in {
     assertResult(Set((0,0), (0,4), (0,8), (1,0), (1,4), (1,8), (1,12), (2,1), (2,5))) {
       annotator2.getBIndexPairSet(Single(SegmentCon("quail")))
     }
   }
 
-  it should "produce index pairs on a Range where the annotation type descends from the constraint" in {
+  it should "produce index pairs on a range where the annotation type descends from the constraint" in {
 
     assertResult(Set((0,0), (1,0))) {
       annotator3.getBIndexPairSet(Single(SegmentCon("falcon")))
@@ -433,15 +449,14 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  "getSegment" should "raise exception if annotation type does not exist" in {
+  "getSegment" should "raise an exception if the specified annotation type does not exist" in {
     intercept[NoSuchElementException] {
       annotator4.getSegment("xyz")(0, 0)
     }
   }
 
-  it should "produce block indexes associated with char indexes associated with labels\n" +
-  "where each label is of the annotation type and the first label is a B or U that\n" + 
-  "starts on or after the provided index pair" in {
+  it should "produce segments of the provided annotation type that start on or after\n" +
+  "the provided index pair" in {
 
     assertResult(IntMap(0 -> IntMap(0 -> B('q'), 1 -> I, 2 -> I, 3 -> L))) {
       annotator4.getSegment("quail")(0, 0)
@@ -465,9 +480,8 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
-  "getRange" should "produce a range of index pairs from the first B or U of the annotation type\n" +
-  "on or after the provided index pair to the U or L of the annotation type \n" +
-  "that the provided annotation type ultimately descends from (i.e. ultimately is constrained by)" in {
+  "getRange" should "characters that make up an annotation whose B or U starts on or after the provided index pair\n" +
+  "to the U or L of the annotation type that the provided annotation type ultimately descends from" in {
 
     assertResult(Some((0,0,0,3))) {
       annotator4.getRange("quail")(0, 0)
@@ -490,7 +504,7 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  "getElementsInRange" should "raise exception if a provided block index does not exist" in {
+  "getElementsInRange" should "raise an exception if the provided block index does not exist" in {
     intercept[IndexOutOfBoundsException] {
       annotator4.getElementsInRange(1, 5)
     }
@@ -501,14 +515,14 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
-  it should "raise exception if the second block index is lesss than the first" in {
+  it should "raise an exception if the second block index is less than the first" in {
     intercept[IllegalArgumentException] {
       annotator4.getElementsInRange(2, 1).mapValues(_.getText())
     }
   }
 
-  it should "produce a map of block indexes to elements\n" +
-  "for whatever elements fall in the provided range of block indexes" in {
+  it should "produce a map of block indexes to elements containing the elements\n" +
+  "that fall in the provided range of block indexes" in {
 
     assertResult(IntMap(0 -> "abcdefghijkl")) {
       annotator4.getElementsInRange(0, 0).mapValues(_.getText())
@@ -524,8 +538,8 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
-  "getElements" should "produce elements that have a B and L or a U of the provided annotation\n" +
-  "on or after the provided block and char index" in {
+  "getElements" should "produce elements that have text between index pairs marked as B and L\n" +
+  "or as U of the provided annotation on or after the provided block and char index" in {
     assertResult(IntMap(0 -> "abcdefghijkl")) {
       annotator4.getElements("quail")(0, 0).mapValues(_.getText())
     }
@@ -547,8 +561,8 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  "getTextMapInRange" should "produce a map of block indexes to char index with text pair\n" +
-  "where the char index is that of the first char the associated text and the text exists in the provided range" in {
+  "getTextMapInRange" should "produce a map of block indexes to pairs of char index with text pair\n" +
+  "where the char index is that of the first char in the associated text and all the texts exist in the provided range" in {
 
     assertResult(IntMap(0 -> (0,"abcd"))) {
       annotator4.getTextMapInRange(0,0,0,3)
@@ -573,8 +587,8 @@ class AnnotatorSpec extends FlatSpec {
   }
 
 
-  "getTextMap" should "produce a text map where the text and indexes have labels of the provided annotation type\n" +
-  "on or after the provided indexes where the first label is B or U and the last is U or L" in {
+  "getTextMap" should "produce a text map of provided annotation type and begins\n" +
+  "on or after the provided indexes" in {
     assertResult(IntMap(0 -> (0,"abcd"))) {
       annotator4.getTextMap("quail")(0, 0)
     }
@@ -597,8 +611,8 @@ class AnnotatorSpec extends FlatSpec {
   }
 
 
-  "getTextByAnnotationType" should "produce a list of text strings, where each string is the text of a segment\n" +
-  "of the provided annotation type" in {
+  "getTextByAnnotationType" should "produce a list of text strings, where each string is the text annotated by\n" +
+  "the provided annotation type" in {
     assertResult(List("abcd", "efgh", "ijkl", "mnop", "qrst", "uvwx", "yz12", "3456", "7")) {
       annotator4.getTextByAnnotationType("quail")
     }
@@ -612,15 +626,15 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  "getFilteredTextByAnnotationType" should "raise exception if called with a first annotation type" +
-  " that is not eventually constrained by the second annotation type" in {
+  "getFilteredTextByAnnotationType" should "raise an exception if the first annotation type\n" +
+  "does not descend from the second annotation type" in {
     intercept[IllegalArgumentException] {
       annotator4.getFilteredTextByAnnotationType("penguin", "falcon")
     }
   }
 
-  it should "produce a list of text strings, where each string is the text of a segment\n" +
-  "of the second annotation provided and is also part of a segment of the first annotation type" in {
+  it should "produce a list of text strings, where each string is annotated by the second annotation type\n" +
+  "and is also partly annotated by the first annotation type" in {
 
     assertResult(List("abcd", "ijkl", "mnop", "uvwx")) {
       annotator4.getFilteredTextByAnnotationType("falcon", "quail")
