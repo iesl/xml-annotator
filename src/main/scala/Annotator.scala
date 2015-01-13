@@ -959,9 +959,7 @@ class Annotator private (
     }
   }
 
-  /** Function to write a string representation of the Annotator instance to the provided file path**/
-  final def write(filePath: String): Annotator = {
-
+  final def mkAnnotatedDom(): Document = {
     val writableDom = frozenDom.clone()
     Annotator.getElements(writableDom).zipWithIndex.foreach { case (e, i) => {
       val block = annotationBlockSeq(i)
@@ -982,6 +980,13 @@ class Annotator private (
       annotationLinksE.addContent(e)
     })
     root.addContent(annotationLinksE)
+    writableDom
+  }
+
+
+  /** Function to write a string representation of the Annotator instance to the provided file path**/
+  final def write(filePath: String): Annotator = {
+    val writableDom = mkAnnotatedDom()
 
     //format
     val outputter = new XMLOutputter(Format.getPrettyFormat(), xmlOutputProcessor)

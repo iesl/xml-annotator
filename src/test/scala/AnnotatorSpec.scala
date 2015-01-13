@@ -348,6 +348,13 @@ class AnnotatorSpec extends FlatSpec {
 
   }
 
+  it should "load annotations already in the dom attribute when called with the load option" in {
+    val domWithAnnotations = annotator4.mkAnnotatedDom()
+    val annotator5 = Annotator(domWithAnnotations, true)
+    assertResult(annotator4.annotationInfoMap)(annotator5.annotationInfoMap)
+    assertResult(annotator4.annotationBlockSeq)(annotator5.annotationBlockSeq)
+  }
+
   "annotate" should "raise an exception if called with an annotation type that already exists" in {
     val table = annotator.getBIndexPairSet(Single(CharCon)).map(_ -> U('q')).toMap
     intercept[AssertionError] {
