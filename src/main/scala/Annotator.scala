@@ -56,7 +56,7 @@ object Annotator {
     * It is used by Annotator instances to hold 
     * a map of annotation type strings to b-indexes of their keys' annotation type
     */
-  type AnnotationLink = Map[String, (Int, Int)]
+  case class AnnotationLink(name: String, attrValueMap: Map[String, (String, Int, Int)])
 
   /** Constructors for labels
     *
@@ -929,16 +929,17 @@ class Annotator private (
   /** Function to return a new Annotator that that has the provided links added **/
   final def annotateLink(_annotationLinkSet: Set[AnnotationLink]): Annotator = {
 
-    val bIndexSetMap = _annotationLinkSet.flatMap(_.keys).map(annoTypeStr => {
+    val bIndexSetMap = _annotationLinkSet.flatMap(_.attrValueMap.values).map(v => {
+      val (annoTypeStr, _, _) = v
       annoTypeStr -> getBIndexPairSet(Single(SegmentCon(annoTypeStr)))
     }).toMap
 
     new Annotator(
       frozenDom, annotationBlockSeq, annotationInfoMap,
       annotationLinkSet ++ _annotationLinkSet.filter(annoLink => {
-        annoLink.foldLeft(true) {
-          case (boolAcc, (annoTypeStr, indexPair)) =>
-            boolAcc && bIndexSetMap.contains(annoTypeStr) && bIndexSetMap(annoTypeStr).contains(indexPair)
+        annoLink.attrValueMap.foldLeft(true) {
+          case (boolAcc, (attr, (annoTypeStr, blockIndex, charIndex))) =>
+            boolAcc && bIndexSetMap.contains(annoTypeStr) && bIndexSetMap(annoTypeStr).contains(blockIndex -> charIndex)
         }
       })
     )
@@ -969,13 +970,13 @@ class Annotator private (
     val root = writableDom.getRootElement()
     val annotationLinksE = new Element("annotation-links")
     annotationLinkSet.map(link => {
-      val e = new Element("link")
-      link.foreach(pair => {
-        val annoType = pair._1
-        val indexPair = pair._2
-        val block = annotationBlockSeq(indexPair._1)
-        val totalIndex = block.startIndex + indexPair._2
-        e.setAttribute(annoType, totalIndex.toString)
+      val e = new Element(link.name)
+
+      link.attrValueMap.foreach(pair => {
+        val (attr, (typeString, blockIndex, charIndex)) = pair
+        val block = annotationBlockSeq(blockIndex)
+        val totalIndex = block.startIndex + charIndex 
+        e.setAttribute(attr, totalIndex.toString)
       })
       annotationLinksE.addContent(e)
     })
