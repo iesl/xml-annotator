@@ -398,7 +398,8 @@ object Annotator {
     */
   def apply(dom: Document, loadAnnotations: Boolean = false): Annotator = {
     val cDom = dom.clone()
-    cDom.getRootElement().getDescendants(new ElementFilter("annotation-links")).toIterable.toList.foreach(_.detach())
+    val annoLinksEs = cDom.getRootElement().getDescendants(new ElementFilter("annotation-links")).toIterable.toList
+    annoLinksEs.foreach(_.detach())
     val anno = new Annotator(
       cDom,
       Annotator.getElements(cDom).foldLeft(IndexedSeq[AnnotationBlock]())( (seqAcc, e) => {
@@ -452,10 +453,27 @@ object Annotator {
 
       })
 
-      orderedAnnotationSeq.foldLeft(anno) {
+      val annotationLinks = annoLinksEs.flatMap(annoLinksE => {
+        annoLinksE.getChildren().map(e => {
+          val name = e.getName()
+          val attrList = e.getAttributes()
+          val attrValueMap = attrList.map(attr => {
+            val attrName = attr.getName()
+            val Array(typeString, totalIndexString) = attr.getValue().split(' ')
+
+            val (blockIndex, charIndex) = anno.mkIndexPair(totalIndexString.toInt)  
+            (attrName -> (typeString, blockIndex, charIndex))
+
+          }).toMap
+
+          AnnotationLink(name, attrValueMap)
+        })
+      }).toSet
+
+      (orderedAnnotationSeq.foldLeft(anno) {
         case (annoAcc, (annoTypePairList, constraintRange, indexPairMap)) =>
           annoAcc.annotate(annoTypePairList, constraintRange, indexPairMap)
-      }
+      }).annotateLink(annotationLinks)
 
     } else {
       anno
@@ -513,6 +531,14 @@ class Annotator private (
 
   /** Function to get all non empty tspan elements internally **/
   private def getFrozenElements(): Iterable[Element] = Annotator.getElements(frozenDom)
+
+  private def mkIndexPair(totalIndex: Int): (Int, Int) = {
+    val blockIndex = annotationBlockSeq.indexWhere(b => {
+      b.startIndex <= totalIndex && b.nextIndex > totalIndex
+    })
+    val charIndex = totalIndex - annotationBlockSeq(blockIndex).startIndex  
+    (blockIndex, charIndex)
+  }
 
   /** Function to produce a string representation of an annotation span **/
   private def renderAnnotation(a: AnnotationSpan, length: Int): String = {
@@ -976,7 +1002,7 @@ class Annotator private (
         val (attr, (typeString, blockIndex, charIndex)) = pair
         val block = annotationBlockSeq(blockIndex)
         val totalIndex = block.startIndex + charIndex 
-        e.setAttribute(attr, totalIndex.toString)
+        e.setAttribute(attr, typeString + " " + totalIndex.toString)
       })
       annotationLinksE.addContent(e)
     })
