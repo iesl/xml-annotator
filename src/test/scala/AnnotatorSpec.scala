@@ -316,6 +316,13 @@ class AnnotatorSpec extends FlatSpec {
   val annotator4 = annotator3.annotate(List("penguin" -> 'p'), Single(SegmentCon("quail")), penguinTable)
 
 
+  val annoWithLinks = annotator4.annotateLink(Set(
+    AnnotationLink("employment", Map("employer" -> ("penguin", 1, 0), "employee" -> ("quail", 0, 4))),
+    AnnotationLink("employment", Map("employer" -> ("penguin", 1, 12), "employee" -> ("quail", 2, 1))),
+    AnnotationLink("employment", Map("employer" -> ("penguin", 1, 12), "employee" -> ("quail", 2, 5))) 
+  ))
+
+
   "Annotator()" should "create an Annotator instance with annotationBlockSeq populated without any annotations" in {
 
     val emptyMap = ListMap[AnnotationType, AnnotationSpan]()
@@ -349,10 +356,11 @@ class AnnotatorSpec extends FlatSpec {
   }
 
   it should "load annotations already in the dom attribute when called with the load option" in {
-    val domWithAnnotations = annotator4.mkAnnotatedDom()
-    val annotator5 = Annotator(domWithAnnotations, true)
-    assertResult(annotator4.annotationInfoMap)(annotator5.annotationInfoMap)
-    assertResult(annotator4.annotationBlockSeq)(annotator5.annotationBlockSeq)
+    val domWithAnnotations = annoWithLinks.mkAnnotatedDom()
+    val anno = Annotator(domWithAnnotations, true)
+    assertResult(annoWithLinks.annotationInfoMap)(anno.annotationInfoMap)
+    assertResult(annoWithLinks.annotationBlockSeq)(anno.annotationBlockSeq)
+    assertResult(annoWithLinks.annotationLinkSet)(anno.annotationLinkSet)
   }
 
   "annotate" should "raise an exception if called with an annotation type that already exists" in {
@@ -400,6 +408,18 @@ class AnnotatorSpec extends FlatSpec {
 
     val actual = annotator2.annotationBlockSeq(0)
     assertResult(expected)(actual)
+  }
+
+
+  "annotateLink" should "create a new annotator containing links" in {
+    
+    assertResult(Set())(annotator4.annotationLinkSet) 
+    assertResult(Set(
+      AnnotationLink("employment", Map("employer" -> ("penguin", 1, 0), "employee" -> ("quail", 0, 4))),
+      AnnotationLink("employment", Map("employer" -> ("penguin", 1, 12), "employee" -> ("quail", 2, 1))),
+      AnnotationLink("employment", Map("employer" -> ("penguin", 1, 12), "employee" -> ("quail", 2, 5))) 
+    ))(annoWithLinks.annotationLinkSet) 
+
   }
 
 
