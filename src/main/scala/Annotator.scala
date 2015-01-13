@@ -46,6 +46,7 @@ import org.jdom2.output.support.AbstractXMLOutputProcessor
   */
 object Annotator {
 
+
   type Segment = IntMap[IntMap[Label]]
   type Element = org.jdom2.Element
   type ElementFilter = org.jdom2.filter.ElementFilter
@@ -319,6 +320,149 @@ object Annotator {
     }
   }
 
+  def parseBioLabels(labelString: String): Map[Int, Label] = {
+    (labelString
+      .toIndexedSeq.zipWithIndex
+      .filter(p => p._1 != ' ').map {
+      case (c, i) =>
+        i -> (c match {
+          case '-' => O
+          case '~' => I
+          case '$' => L
+          case t if t.isLower => B(t)
+          case t if t.isUpper => U(t.toLower)
+        })
+    }).toMap
+  }
+
+  def parseBioTypes(typeString: String): List[(String, Char)] = {
+    typeString.split(", ").map(pairString => {
+      val Array(str, c) = pairString.split(": ")
+      (str, c.toCharArray()(0))
+    }).toList
+  }
+
+  def parseBioConstraints(constraintString: String): ConstraintRange = {
+    val typeList = constraintString.split('.')
+    val size = typeList.size 
+    val lastType = typeList(size - 1)
+    val con = if (lastType == "char") {
+      CharCon
+    } else {
+      SegmentCon(lastType)
+    }
+
+    if (size == 1) {
+      Single(con)
+    } else {
+      Range(typeList(0), con)
+    }
+  }
+
+  def parseBioBlock(blockString: String): List[(Map[Int, Label], List[(String, Char)], ConstraintRange)] = {
+    val labelPattern = """\| \|([a-zA-Z~ \$]+)\| """
+    val typePattern = """[a-z\-]+: [a-z]"""
+    val constraintPattern = """[a-z\-]+"""
+    val fullPattern = labelPattern + """\{type: \{(""" + typePattern + "(, " + typePattern + ")*" + 
+                      """)\}, constraint: (""" + constraintPattern + """(\.""" + constraintPattern + ")*" +""")\}"""
+
+    fullPattern.r.findAllIn(blockString).toList.reverse.map(spanString => {
+      spanString match {
+        case fullPattern.r(labelString, typeString, _, constraintString, _) =>
+
+          val labelMap = parseBioLabels(labelString)
+          val typePairList = parseBioTypes(typeString) 
+          val constraintRange = parseBioConstraints(constraintString)
+          (labelMap, typePairList, constraintRange)
+      }
+    })
+
+  }
+
+  def parseBioDoc(es: List[Element]): List[List[(Map[Int, Label], List[(String, Char)], ConstraintRange)]] = {
+    es.map(e => {
+      e.getAttribute("bio") match {
+        case null => List() 
+        case attr => 
+          val bioString = attr.getValue()
+          parseBioBlock(bioString)
+      }
+    })
+  }
+
+
+  /** Public constructor 
+    *
+    * It populates the annotation block sequence by creating
+    * an annotation block for every non empty tspan it finds
+    */
+  def apply(dom: Document, loadAnnotations: Boolean = false): Annotator = {
+    val cDom = dom.clone()
+    cDom.getRootElement().getDescendants(new ElementFilter("annotation-links")).toIterable.toList.foreach(_.detach())
+    val anno = new Annotator(
+      cDom,
+      Annotator.getElements(cDom).foldLeft(IndexedSeq[AnnotationBlock]())( (seqAcc, e) => {
+        val startIndex = if (seqAcc.isEmpty) 0 else seqAcc.last.nextIndex
+        val nextIndex = startIndex + e.getText().size
+        seqAcc :+ AnnotationBlock(startIndex, nextIndex, ListMap())
+      } ),
+      HashMap(),
+      HashSet()
+    )
+
+    if (loadAnnotations) {
+
+      val parsing: Seq[Seq[(Map[Int, Label], List[(String, Char)], ConstraintRange)]] = {
+        parseBioDoc(anno.getElements().toList)
+      }
+      
+      val partialAnnotationSeq: Seq[(Map[(Int, Int), Label], List[(String, Char)], ConstraintRange)] = {
+        parsing.toIndexedSeq.zipWithIndex.flatMap {
+          case (xs, blockIndex) =>
+            xs.map {
+              case (labelMap, typeList, constraintRange) =>
+                val pairIndexLabelMap = labelMap.map {
+                  case (charIndex, label) => ((blockIndex, charIndex), label)
+                }
+                (pairIndexLabelMap, typeList, constraintRange)
+            }
+        }
+      }
+
+      val annotationMap = partialAnnotationSeq.foldLeft(HashMap[(List[(String, Char)], ConstraintRange), Map[(Int, Int), Label]]()) {
+        case (mapAcc, (pairIndexLabelMap, typeList, constraintRange)) =>
+          val key = (typeList, constraintRange)
+
+          if (mapAcc.contains(key)) {
+            mapAcc + (key -> (mapAcc(key) ++ pairIndexLabelMap)) 
+          } else {
+            mapAcc + (key -> pairIndexLabelMap) 
+          }
+      }
+
+      val orderedKeySeq = partialAnnotationSeq.map {
+        case (_, typeList, constraintRange) => 
+          (typeList, constraintRange)
+      } distinct
+
+      val orderedAnnotationSeq = orderedKeySeq.map(k => {
+        val (typeList, constraintRange) = k
+        val indexPairMap = annotationMap(k)
+        (typeList, constraintRange, indexPairMap)
+
+      })
+
+      orderedAnnotationSeq.foldLeft(anno) {
+        case (annoAcc, (annoTypePairList, constraintRange, indexPairMap)) =>
+          annoAcc.annotate(annoTypePairList, constraintRange, indexPairMap)
+      }
+
+    } else {
+      anno
+    }
+
+  }
+
 
 }
 
@@ -346,22 +490,6 @@ class Annotator private (
       */
     val annotationLinkSet: Set[AnnotationLink] 
 ) {
-
-  /** Public constructor 
-    *
-    * It populates the annotation block sequence by creating
-    * an annotation block for every non empty tspan it finds
-    */
-  def this(dom: Document) = this(
-    dom,
-    Annotator.getElements(dom).foldLeft(IndexedSeq[AnnotationBlock]())( (seqAcc, e) => {
-      val startIndex = if (seqAcc.isEmpty) 0 else seqAcc.last.nextIndex
-      val nextIndex = startIndex + e.getText().size
-      seqAcc :+ AnnotationBlock(startIndex, nextIndex, ListMap())
-    } ),
-    HashMap(),
-    HashSet()
-  )
 
   /** Clone of dom, who and whose elements are never passed outside of instance and who is always unmutated **/
   private val frozenDom = dom.clone()
@@ -777,7 +905,7 @@ class Annotator private (
                 val labelMap = labelTable(blockIndex)
                 labelMap.contains(charIndex) && ({
                   val label = labelMap(charIndex)
-                  label == B(char) || label == U(char)
+                  label == U(char) || label == B(char)
                 })
               })
           }

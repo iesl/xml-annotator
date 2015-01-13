@@ -275,7 +275,7 @@ class AnnotatorSpec extends FlatSpec {
   //Annotator Instances
 
   import Annotator._
-  val annotator = new Annotator(dom)
+  val annotator = Annotator(dom)
 
   val quailTable = (annotator.getBIndexPairSet(Single(CharCon)).zipWithIndex.toMap.map {
     case (indexPair, i) =>
@@ -316,7 +316,7 @@ class AnnotatorSpec extends FlatSpec {
   val annotator4 = annotator3.annotate(List("penguin" -> 'p'), Single(SegmentCon("quail")), penguinTable)
 
 
-  "new Annotator" should "create an Annotator instance with annotationBlockSeq populated without any annotations" in {
+  "Annotator()" should "create an Annotator instance with annotationBlockSeq populated without any annotations" in {
 
     val emptyMap = ListMap[AnnotationType, AnnotationSpan]()
     val expectedResults = IndexedSeq(
