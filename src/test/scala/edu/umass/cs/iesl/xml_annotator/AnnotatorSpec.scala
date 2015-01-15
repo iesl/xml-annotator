@@ -1,4 +1,4 @@
-package annotator
+package edu.umass.cs.iesl.xml_annotator
 
 import org.scalatest._
 

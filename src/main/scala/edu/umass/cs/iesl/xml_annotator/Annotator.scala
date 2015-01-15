@@ -1,4 +1,4 @@
-package annotator
+package edu.umass.cs.iesl.xml_annotator
 
 import java.io.File
 import java.io.FileOutputStream
