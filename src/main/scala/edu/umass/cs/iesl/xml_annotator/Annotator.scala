@@ -156,7 +156,10 @@ object Annotator {
 
   /** Function to get element's font size **/
   def fontSize(e: Element): Double = {
-    e.getAttribute("font-size").getValue().dropRight(2).toDouble
+    val raw = e.getAttribute("font-size").getValue()
+    if (raw.endsWith("px")) {
+      raw.dropRight(2).toDouble
+    } else raw.toDouble
   }
 
   /** Function to get element's y position **/

@@ -1,7 +1,9 @@
-name := "Annotator"
+organization := "edu.umass.cs.iesl"
 
-version := "1.0"
- 
+name := "xml_annotator"
+
+version := "0.1-SNAPSHOT"
+
 scalaVersion := "2.11.1"
 
 libraryDependencies ++= Seq(
