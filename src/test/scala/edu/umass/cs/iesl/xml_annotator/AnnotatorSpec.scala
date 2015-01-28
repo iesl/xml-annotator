@@ -145,8 +145,8 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  it should "raise an exception if arguments have different depths in the same tree" in {
-    intercept[IllegalArgumentException] {
+  it should "find ancestor if elements have different depths in the same tree" in {
+    assertResult(e_1) {
       Annotator.commonAncestor(e_1_1, e_1_2_1)
     }
   }

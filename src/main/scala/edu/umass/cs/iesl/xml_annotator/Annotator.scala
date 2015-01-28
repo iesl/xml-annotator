@@ -177,11 +177,19 @@ object Annotator {
     e.getAttribute("endX").getValue().toDouble 
   }
 
+  def getTspanDescendants(e: Element) = {
+    e.getDescendants(new ElementFilter("tspan")).toIterable.toList
+  }
+
   /** Function to get the most recent common ancestor of two elements **/
   def commonAncestor(e1: Element, e2: Element): Element = {
     require(e1 != null && e2 != null, "one of the elements has invalid null value")
     if (e1 == e2) {
       e1
+    } else if (e1.isAncestor(e2)) {
+      e1
+    } else if (e2.isAncestor(e1)) {
+      e2
     } else {
       commonAncestor(e1.getParentElement(), e2.getParentElement())
     }
