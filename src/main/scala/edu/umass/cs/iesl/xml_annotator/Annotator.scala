@@ -522,13 +522,16 @@ class Annotator private (
 
   /** Clone of dom, who and whose elements are never passed outside of instance and who is always unmutated **/
   private val frozenDom = dom.clone()
+  private val frozenElementSeq = Annotator.getElements(frozenDom).toIndexedSeq
 
   /** Clone of dom for passing outside **/
   private var _dom: Document = frozenDom.clone()
+  private var _elementSeq: Seq[Element] = Annotator.getElements(_dom).toIndexedSeq
 
   /** Function to replace _dom with a certainly clean unmutated dom **/
   final def resetDom(): Unit = {
     _dom = frozenDom.clone()
+    _elementSeq = Annotator.getElements(_dom).toIndexedSeq
   }
 
   /** Function to get dom externally **/
@@ -538,10 +541,7 @@ class Annotator private (
     *
     * Each position is a block index
     */
-  final def getElements(): Iterable[Element] = Annotator.getElements(_dom)
-
-  /** Function to get all non empty tspan elements internally **/
-  private def getFrozenElements(): Iterable[Element] = Annotator.getElements(frozenDom)
+  final def getElements(): Seq[Element] = _elementSeq
 
   private def mkIndexPair(totalIndex: Int): (Int, Int) = {
     val blockIndex = annotationBlockSeq.indexWhere(b => {
@@ -642,7 +642,7 @@ class Annotator private (
   }
   
   /** Sorted set of the index pairs for every character in all the tspans **/
-  private val charBIndexPairSet: SortedSet[(Int, Int)] = SortedSet(getFrozenElements().toIndexedSeq.zipWithIndex.flatMap { 
+  private val charBIndexPairSet: SortedSet[(Int, Int)] = SortedSet(frozenElementSeq.zipWithIndex.flatMap { 
     case (e, blockIndex) => 
       (0 until e.getText().size).map(charIndex => {
         blockIndex -> charIndex
