@@ -905,6 +905,7 @@ class Annotator private (
     } else List()
     
   }
+
   
   def pair2Total(pair: (Int, Int)): Int = {
     annotationBlockSeq(pair._1).startIndex + pair._2
@@ -919,7 +920,7 @@ class Annotator private (
     * labels with index pairs that are outside of the annotatable region (defined by the dom and constraintRange)
     * will not be added
     */
-  private def annotateWithIndexPairMap(
+  final def annotateWithIndexPairMap(
       nameCharPairSeq: Seq[(String, Char)], 
       constraintRange: ConstraintRange, 
       fullLabelMap: Map[(Int, Int), Label]
