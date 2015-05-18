@@ -46,8 +46,6 @@ import org.jdom2.output.support.AbstractXMLOutputProcessor
   */
 object Annotator {
 
-
-  type Segment = IntMap[IntMap[Label]]
   type Element = org.jdom2.Element
   type ElementFilter = org.jdom2.filter.ElementFilter
 
@@ -122,7 +120,7 @@ object Annotator {
     */
   case class AnnotationInfo(
       annotationType: AnnotationType, 
-      bIndexPairSortedSet: SortedSet[(Int, Int)]
+      bIndexSortedSet: SortedSet[Int]
   )
 
   /** Constructor for annotation blocks 
@@ -284,12 +282,12 @@ object Annotator {
     *
     * It can be used to produce index pairs of every character in text maps taken from Annotator instances 
     */
-  final def mkIndexPairSeq(textMap: IntMap[(Int, String)]): IndexedSeq[(Int, Int)] = {
-    textMap.toIndexedSeq.flatMap {
-      case (_blockIndex, (_charIndex, text)) =>
-        (0 until text.size).map(i => _blockIndex -> (_charIndex + i))
-    }
-  }
+  //final def mkIndexPairSeq(textMap: IntMap[(Int, String)]): IndexedSeq[(Int, Int)] = {
+  //  textMap.toIndexedSeq.flatMap {
+  //    case (_blockIndex, (_charIndex, text)) =>
+  //      (0 until text.size).map(i => _blockIndex -> (_charIndex + i))
+  //  }
+  //}
 
 
   /** Function to make a map of ints to int pairs from sequence and set of int pairs 
@@ -298,36 +296,36 @@ object Annotator {
     * param bIndexPairSet specifies the int pairs whose indexes are to be incremented 
     * and whose following int pairs' positions are to be incremented
     */
-  final def mkIndexPairMap(indexPairSeq: IndexedSeq[(Int,Int)], bIndexPairSet: Set[(Int, Int)]): IntMap[(Int, Int)] = {
-    indexPairSeq.foldLeft(IntMap[(Int,Int)]()) {
-      case (mapAcc, indexPair) =>
-        val key = if (mapAcc.isEmpty) 0 else mapAcc.lastKey + 1
-        mapAcc + (if (bIndexPairSet.contains(indexPair)) {
-          (key + 1) -> indexPair
-        } else {
-          key -> indexPair
-        })
-    }
-  }
+  //final def mkIndexPairMap(indexPairSeq: IndexedSeq[(Int,Int)], bIndexPairSet: Set[(Int, Int)]): IntMap[(Int, Int)] = {
+  //  indexPairSeq.foldLeft(IntMap[(Int,Int)]()) {
+  //    case (mapAcc, indexPair) =>
+  //      val key = if (mapAcc.isEmpty) 0 else mapAcc.lastKey + 1
+  //      mapAcc + (if (bIndexPairSet.contains(indexPair)) {
+  //        (key + 1) -> indexPair
+  //      } else {
+  //        key -> indexPair
+  //      })
+  //  }
+  //}
 
   /** Function to make a map of ints to int pairs 
     * from a map of ints to int and string pairs and a set of int pairs
     */
-  final def mkIndexPairMap(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)]): IntMap[(Int, Int)] = {
-    val indexPairSeq = mkIndexPairSeq(textMap)
-    mkIndexPairMap(indexPairSeq, bIndexPairSet)
-  }
+  //final def mkIndexPairMap(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)]): IntMap[(Int, Int)] = {
+  //  val indexPairSeq = mkIndexPairSeq(textMap)
+  //  mkIndexPairMap(indexPairSeq, bIndexPairSet)
+  //}
 
   /** Function to make a string of text with specified characters inserted at specified locations **/
-  final def mkTextWithBreaks(textMap: IntMap[(Int, String)], bIndexPairSet: Set[(Int, Int)], break: Char = '\n'): String = {
-    textMap.foldLeft("") {
-      case (strAcc, (blockIndex, (charIndex, text))) =>
-        if (bIndexPairSet.contains(blockIndex -> charIndex)) {
-          strAcc + break + text
-        } else {
-          strAcc + text
-        }
+  final def mkTextWithBreaks(text: String, breakIndexSet: Set[Int], break: Char = '\n'): String = {
 
+    text.toList.zipWithIndex.foldLeft("") {
+      case (strAcc, (char, index)) =>
+        if (breakIndexSet.contains(index)) {
+          strAcc + break + char
+        } else {
+          strAcc + char 
+        }
     }
   }
 
@@ -375,7 +373,7 @@ object Annotator {
     val typePattern = """[a-z\-]+: [a-z]"""
     val constraintPattern = """[a-z\-]+"""
     val fullPattern = labelPattern + """\{type: \{(""" + typePattern + "(, " + typePattern + ")*" + 
-                      """)\}, constraint: (""" + constraintPattern + """(\.""" + constraintPattern + ")*" +""")\}"""
+                      """)\}, unit: (""" + constraintPattern + """(\.""" + constraintPattern + ")*" +""")\}"""
 
     fullPattern.r.findAllIn(blockString).toList.reverse.map(spanString => {
       spanString match {
@@ -483,7 +481,7 @@ object Annotator {
 
       (orderedAnnotationSeq.foldLeft(anno) {
         case (annoAcc, (annoTypePairList, constraintRange, indexPairMap)) =>
-          annoAcc.annotate(annoTypePairList, constraintRange, indexPairMap)
+          annoAcc.annotateWithIndexPairMap(annoTypePairList, constraintRange, indexPairMap)
       }).annotateLink(annotationLinks)
 
     } else {
@@ -543,7 +541,7 @@ class Annotator private (
     */
   final def getElements(): Seq[Element] = _elementSeq
 
-  private def mkIndexPair(totalIndex: Int): (Int, Int) = {
+  final def mkIndexPair(totalIndex: Int): (Int, Int) = {
     val blockIndex = annotationBlockSeq.indexWhere(b => {
       b.startIndex <= totalIndex && b.nextIndex > totalIndex
     })
@@ -565,7 +563,7 @@ class Annotator private (
       })
     })
 
-    val constr =  ", constraint: " + {
+    val constr =  ", unit: " + {
       val constraintRange = a.annotationTypeSeq(0).constraintRange
       a.annotationTypeSeq.foreach(annoType => {
         assert(annoType.constraintRange == constraintRange, "annotationTypeSeq has inconsistent constraints")
@@ -642,12 +640,9 @@ class Annotator private (
   }
   
   /** Sorted set of the index pairs for every character in all the tspans **/
-  private val charBIndexPairSet: SortedSet[(Int, Int)] = SortedSet(frozenElementSeq.zipWithIndex.flatMap { 
-    case (e, blockIndex) => 
-      (0 until e.getText().size).map(charIndex => {
-        blockIndex -> charIndex
-      })
-  }: _*)
+   val totalCharSize: Int = frozenElementSeq.map(_.getText().size).foldLeft(0) {
+     case (acc, size) =>  acc + size
+   }
 
 
   /** Function to produce segments  
@@ -656,11 +651,11 @@ class Annotator private (
     * and a char index, a segment of the annotation type that
     * start on or after the provided index pair
     */
-  final def getSegment(annotationTypeName: String)(blockIndex: Int, charIndex: Int): Segment = {
+  final def getSegment(annotationTypeName: String)(index: Int): Map[Int, Label] = {
 
     val annotationType = annotationInfoMap(annotationTypeName).annotationType
 
-    def loop(foundFirst: Boolean, blockIndex: Int, charIndex: Int): Segment = {
+    def loop(foundFirst: Boolean, blockIndex: Int, charIndex: Int): Map[Int, Map[Int, Label]] = {
 
       if (annotationBlockSeq.size > blockIndex) {
         val block = annotationBlockSeq(blockIndex)
@@ -698,12 +693,18 @@ class Annotator private (
             }
         }
       } else {
-        IntMap[IntMap[Label]]()
+        Map[Int, Map[Int, Label]]()
       }
 
     }
 
-    loop(false, blockIndex, charIndex)
+    val (blockIndex, charIndex) = mkIndexPair(index)
+    val table = loop(false, blockIndex, charIndex)
+    table.flatMap { case (blockIndex, labelMap) =>
+      labelMap.map { case (charIndex, char) =>
+        pair2Total(blockIndex -> charIndex) -> char
+      }
+    }
 
   }
 
@@ -715,38 +716,36 @@ class Annotator private (
     * the result's four ints represent 
     * the first block index, first char index, last block index, and last char index, respectively
     */
-  final def getRange(annotationTypeName: String)(blockIndex: Int, charIndex: Int): Option[(Int, Int, Int, Int)] = {
-    val segment = getSegment(annotationTypeName)(blockIndex, charIndex)
+  final def getRange(annotationTypeName: String)(index: Int): Option[(Int, Int)] = {
+    val segment = getSegment(annotationTypeName)(index)
 
     if (segment.isEmpty) {
       None 
     } else {
-      def findLastIndexPair(blockIndex: Int, charIndex: Int, constraint: Constraint): (Int, Int) = {
+      def findLastIndex(startIndex: Int, constraint: Constraint): Int = {
         constraint match {
           case CharCon => 
-            (blockIndex -> charIndex)
+            startIndex
           case SegmentCon(annoTypeName) =>
             val annoType = annotationInfoMap(annoTypeName).annotationType
-            val segment =  getSegment(annoTypeName)(blockIndex, charIndex)
-            val blockLIndex = segment.lastKey
-            val charLIndex = segment(segment.lastKey).lastKey
+            val segment =  getSegment(annoTypeName)(startIndex)
+            val lastIndex = segment.keySet.max
             val con = annoType.constraintRange match {
               case Single(c) => c
               case Range(_, c) => c
             }
-            findLastIndexPair(blockLIndex, charLIndex, con)
+            findLastIndex(lastIndex, con)
         }
       }
 
-      val blockBIndex = segment.firstKey
-      val charBIndex = segment(blockBIndex).firstKey
+      val firstIndex = segment.keySet.min
       val con = annotationInfoMap(annotationTypeName).annotationType.constraintRange match {
         case Single(c) => c
         case Range(_, c) => c
       }
-      val (blockLIndex, charLIndex) = findLastIndexPair(segment.lastKey, segment(segment.lastKey).lastKey, con)
+      val lastIndex = findLastIndex(segment.keySet.max, con)
 
-      Some(blockBIndex, charBIndex, blockLIndex, charLIndex)
+      Some(firstIndex, lastIndex)
 
     }
   }
@@ -768,10 +767,12 @@ class Annotator private (
     * and start on or after the provided indexes 
     */
   final def getElements(annotationTypeName: String)(blockIndex: Int, charIndex: Int): IntMap[Element] = {
-    getRange(annotationTypeName)(blockIndex, charIndex) match {
+    getRange(annotationTypeName)(pair2Total(blockIndex -> charIndex)) match {
       case None =>
         IntMap[Element]()
-      case Some((blockBIndex, _, blockLIndex, _)) =>
+      case Some((startIndex, endIndex)) =>
+        val (blockBIndex, _) = mkIndexPair(startIndex)
+        val (blockLIndex, _) = mkIndexPair(endIndex)
         getElementsInRange(blockBIndex, blockLIndex)
     }
   }
@@ -781,69 +782,62 @@ class Annotator private (
     * the returned map's keys are block indexes, and each corresponding value is a char index and 
     * the text that exists in that block starting from that char index 
     */
-  final def getTextMapInRange(blockIndex1: Int, charIndex1: Int, blockIndex2: Int, charIndex2: Int): IntMap[(Int, String)] = {
+  final def getTextInRange(index1: Int, index2: Int): String = {
+
+    val (blockIndex1, charIndex1) = mkIndexPair(index1)
+    val (blockIndex2, charIndex2) = mkIndexPair(index2)
+
     getElementsInRange(blockIndex1, blockIndex2).map { case (blockIndex, e) => 
 
       if (blockIndex == blockIndex1 && blockIndex == blockIndex2) {
-        blockIndex -> (charIndex1 -> e.getText().take(charIndex2 + 1).drop(charIndex1))
+        e.getText().take(charIndex2 + 1).drop(charIndex1)
 
       } else if (blockIndex == blockIndex1) {
-        blockIndex -> (charIndex1 -> e.getText().drop(charIndex1))
+        e.getText().drop(charIndex1)
 
       } else if (blockIndex == blockIndex2) {
-        blockIndex -> (0 -> e.getText().take(charIndex2 + 1))
+        e.getText().take(charIndex2 + 1)
 
       } else {
-        blockIndex -> (0 -> e.getText())
+        e.getText()
 
       }
 
-    }
+    } mkString("")
   }
 
 
   /** Function to return a text map of the provided annotation type 
     * where the text map starts on or after the provided index pair
     */
-  final def getTextMap(annotationTypeName: String)(blockIndex: Int, charIndex: Int): IntMap[(Int, String)] = {
-    getRange(annotationTypeName)(blockIndex, charIndex) match {
+  final def getText(annotationTypeName: String)(index: Int): String = {
+    getRange(annotationTypeName)(index) match {
       case None =>
-        IntMap[(Int,String)]()
-      case Some((blockBIndex, charBIndex, blockLIndex, charLIndex)) =>
-        getTextMapInRange(
-            blockBIndex, 
-            charBIndex,
-            blockLIndex,
-            charLIndex
-        )
+        ""
+      case Some((startIndex, endIndex)) =>
+        getTextInRange(startIndex, endIndex)
     }
   }
 
   /** Function to return a sorted set of b-index pairs given a constraint range **/
-  final def getBIndexPairSet(constraintRange: ConstraintRange): SortedSet[(Int, Int)] = {
+  final def getBIndexSet(constraintRange: ConstraintRange): SortedSet[Int] = {
     constraintRange match {
       case Single(CharCon) =>
-        charBIndexPairSet
+        SortedSet((0 until totalCharSize):_*)
       case Single(SegmentCon(annotationTypeName)) =>
-        annotationInfoMap(annotationTypeName).bIndexPairSortedSet
+        annotationInfoMap(annotationTypeName).bIndexSortedSet
       case Range(annotationTypeName, endCon) =>
-        def loop(bIndexPairSortedSetAcc: SortedSet[(Int, Int)], constraint: Constraint): SortedSet[(Int, Int)] = {
+        def loop(bIndexSortedSetAcc: SortedSet[Int], constraint: Constraint): SortedSet[Int] = {
           (constraint, endCon) match {
             case (CharCon, SegmentCon(_)) => 
               require(false, "constraintRange's end does not follow from its start")
-              SortedSet[(Int, Int)]()
+              SortedSet[Int]()
             case (x, y) if (x == y) => 
-              bIndexPairSortedSetAcc
+              bIndexSortedSetAcc
             case (SegmentCon(annotationTypeName), _) =>
 
-              val _bIndexPairSortedSetAcc = bIndexPairSortedSetAcc.flatMap(pair => { 
-                val (blockIndex, charIndex) = pair
-                val segment = getSegment(annotationTypeName)(blockIndex, charIndex)
-                segment.keys.flatMap(bI => {
-                  segment(bI).keys.map(cI => {
-                    bI -> cI
-                  })
-                })
+              val _bIndexSortedSetAcc = bIndexSortedSetAcc.flatMap(bIndex => { 
+                getSegment(annotationTypeName)(bIndex).keySet
               })
 
               val annotationType = annotationInfoMap(annotationTypeName).annotationType
@@ -852,13 +846,13 @@ class Annotator private (
                 case Range(_, c) => c
               }
 
-              loop(_bIndexPairSortedSetAcc, _constraint)
+              loop(_bIndexSortedSetAcc, _constraint)
           }
         }
-        loop(annotationInfoMap(annotationTypeName).bIndexPairSortedSet, SegmentCon(annotationTypeName))
+        loop(annotationInfoMap(annotationTypeName).bIndexSortedSet, SegmentCon(annotationTypeName))
       case _ =>
         require(false, "constraintRange is illformed")
-        SortedSet[(Int, Int)]()
+        SortedSet[Int]()
     }
   }
 
@@ -866,26 +860,44 @@ class Annotator private (
   /** Function to return text that exists of the provided annotation type 
     * on or after each provided index pair 
     */
-  private def getSegmentedText(annoType: String, bIndexPairSet: Set[(Int, Int)]): List[String] = {
-    bIndexPairSet.toList.map {
-      case (blockBIndex, charBIndex) =>
-        val textMap = getTextMap(annoType)(blockBIndex, charBIndex)
-        textMap.values.map(_._2).mkString("")
-    }
+  private def getSegmentedText(annoType: String, bIndexSet: Set[Int]): List[String] = {
+    bIndexSet.toList.map(index => {
+      getText(annoType)(index)
+    })
   }
 
   /** Function to return a list of the text annotated as the the provided annotation type **/
   final def getTextByAnnotationType(annoType: String): List[String] = {
-    val bIndexPairSet = getBIndexPairSet(Single(SegmentCon(annoType)))
-    getSegmentedText(annoType, bIndexPairSet)
+    val bIndexSet = getBIndexSet(Single(SegmentCon(annoType)))
+    getSegmentedText(annoType, bIndexSet)
   }
 
   /** Function to return a list of the text annotated as the the provided annotation type
     * where the text is also part of a annotations of the first argument, filterAnnoType
     */
   final def getFilteredTextByAnnotationType(filterAnnoType: String, annoType: String): List[String] = {
-    val bIndexPairSet = getBIndexPairSet(Range(filterAnnoType, SegmentCon(annoType)))
+    val bIndexPairSet = getBIndexSet(Range(filterAnnoType, SegmentCon(annoType)))
     getSegmentedText(annoType, bIndexPairSet)
+  }
+
+  /** Function 
+    */
+  final def getGroupedText(groupAnnoType: String, annoType: String): List[List[String]] = {
+    if (getBIndexSet(Range(groupAnnoType, SegmentCon(annoType))).size > 0) {
+
+      val groupBIndexSet = getBIndexSet(Single(SegmentCon(groupAnnoType)))
+      groupBIndexSet.toList.map(bIndex => {
+        val groupSegment = getSegment(groupAnnoType)(bIndex)
+        groupSegment.toList.map { case (index, label) =>
+          getText(annoType)(index)
+        }
+      })
+    } else List()
+    
+  }
+  
+  def pair2Total(pair: (Int, Int)): Int = {
+    annotationBlockSeq(pair._1).startIndex + pair._2
   }
 
   /** Function to produce a new Annotator with additional annotations
@@ -897,13 +909,13 @@ class Annotator private (
     * labels with index pairs that are outside of the annotatable region (defined by the dom and constraintRange)
     * will not be added
     */
-  final def annotate(
+  private def annotateWithIndexPairMap(
       nameCharPairSeq: Seq[(String, Char)], 
       constraintRange: ConstraintRange, 
       fullLabelMap: Map[(Int, Int), Label]
   ): Annotator = {
 
-    val annotatableIndexPairSet = getBIndexPairSet(constraintRange)
+    val annotatableIndexSet = getBIndexSet(constraintRange)
 
     val annotationTypeSeq = nameCharPairSeq.map {
       case (name, char) =>
@@ -913,7 +925,7 @@ class Annotator private (
 
     val labelTable = fullLabelMap.filter(p => {
       val indexPair = p._1
-      annotatableIndexPairSet.contains(indexPair)
+      annotatableIndexSet.contains(pair2Total(indexPair))
     }).foldLeft(IntMap[IntMap[Label]]()) {
       case (tableAcc, ((blockIndex, charIndex), label)) =>
         if (tableAcc.contains(blockIndex)) {
@@ -936,18 +948,18 @@ class Annotator private (
       val annotationInfoList = annotationTypeSeq.map {
         case _annotationType => 
           val char = _annotationType.c
-          val bIndexPairSet = annotatableIndexPairSet.filter {
-            case (blockIndex, charIndex) => 
-              labelTable.contains(blockIndex) && ({
-                val labelMap = labelTable(blockIndex)
-                labelMap.contains(charIndex) && ({
-                  val label = labelMap(charIndex)
-                  label == U(char) || label == B(char)
-                })
+          val bIndexSet = annotatableIndexSet.filter(index => {
+            val (blockIndex, charIndex) = mkIndexPair(index)
+            labelTable.contains(blockIndex) && ({
+              val labelMap = labelTable(blockIndex)
+              labelMap.contains(charIndex) && ({
+                val label = labelMap(charIndex)
+                label == U(char) || label == B(char)
               })
-          }
+            })
+          })
 
-          _annotationType.name -> AnnotationInfo(_annotationType, bIndexPairSet)
+          _annotationType.name -> AnnotationInfo(_annotationType, bIndexSet)
           
       }
 
@@ -963,12 +975,23 @@ class Annotator private (
     
   }
 
+  final def annotate(
+      nameCharPairSeq: Seq[(String, Char)], 
+      constraintRange: ConstraintRange, 
+      fullLabelMap: Map[Int, Label]
+  ): Annotator = {
+    annotateWithIndexPairMap(nameCharPairSeq, constraintRange, fullLabelMap.map(p => {
+      val (index, label) = p
+      mkIndexPair(index) -> label
+    }))
+  }
+
   /** Function to return a new Annotator that that has the provided links added **/
   final def annotateLink(_annotationLinkSet: Set[AnnotationLink]): Annotator = {
 
     val bIndexSetMap = _annotationLinkSet.flatMap(_.attrValueMap.values).map(v => {
       val (annoTypeStr, _, _) = v
-      annoTypeStr -> getBIndexPairSet(Single(SegmentCon(annoTypeStr)))
+      annoTypeStr -> getBIndexSet(Single(SegmentCon(annoTypeStr)))
     }).toMap
 
     new Annotator(
@@ -976,7 +999,7 @@ class Annotator private (
       annotationLinkSet ++ _annotationLinkSet.filter(annoLink => {
         annoLink.attrValueMap.foldLeft(true) {
           case (boolAcc, (attr, (annoTypeStr, blockIndex, charIndex))) =>
-            boolAcc && bIndexSetMap.contains(annoTypeStr) && bIndexSetMap(annoTypeStr).contains(blockIndex -> charIndex)
+            boolAcc && bIndexSetMap.contains(annoTypeStr) && bIndexSetMap(annoTypeStr).contains(pair2Total(blockIndex -> charIndex))
         }
       })
     )

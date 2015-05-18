@@ -225,93 +225,67 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  "mkIndexPairSeq" should "return a sequence of int pairs" in {
-    assertResult(
-      IndexedSeq((3,4), (3,5), (3,6), (3,7), (3,8), (5,0), (5,1), (5,2), (5,3))
-    ) {
-      val textMap = IntMap(3 -> (4, "abcde"), 5 -> (0, "fghi"))
-      Annotator.mkIndexPairSeq(textMap)
-    }
-  }
+  //"mkIndexPairSeq" should "return a sequence of int pairs" in {
+  //  assertResult(
+  //    IndexedSeq((3,4), (3,5), (3,6), (3,7), (3,8), (5,0), (5,1), (5,2), (5,3))
+  //  ) {
+  //    val textMap = IntMap(3 -> (4, "abcde"), 5 -> (0, "fghi"))
+  //    Annotator.mkIndexPairSeq(textMap)
+  //  }
+  //}
 
-  "mkIndexPairMap" should "return a map of ints to int pairs, when the first argument is an int pair seq" in {
+  //"mkIndexPairMap" should "return a map of ints to int pairs, when the first argument is an int pair seq" in {
 
-    assertResult(
-      IntMap(0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3)) 
-    ) {
-      val indexPairSeq = IndexedSeq((3,4), (3,5), (3,6), (3,7), (3,8), (5,0), (5,1), (5,2), (5,3))
-      val bIndexPairSet = Set((3,6), (5,1))
-      Annotator.mkIndexPairMap(indexPairSeq, bIndexPairSet)
-    }
-  }
+  //  assertResult(
+  //    IntMap(0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3)) 
+  //  ) {
+  //    val indexPairSeq = IndexedSeq((3,4), (3,5), (3,6), (3,7), (3,8), (5,0), (5,1), (5,2), (5,3))
+  //    val bIndexPairSet = Set((3,6), (5,1))
+  //    Annotator.mkIndexPairMap(indexPairSeq, bIndexPairSet)
+  //  }
+  //}
 
-  it should "return a map of ints to int pairs, when first argument is a text map" in {
-    assertResult(
-      IntMap(0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3)) 
-    ) {
-      val textMap = IntMap(3 -> (4, "abcde"), 5 -> (0, "fghi"))
-      val bIndexPairSet = Set((3,6), (5,1))
-      Annotator.mkIndexPairMap(textMap, bIndexPairSet)
-    }
-  }
+  //it should "return a map of ints to int pairs, when first argument is a text map" in {
+  //  assertResult(
+  //    IntMap(0 -> (3,4), 1 -> (3,5), 3 -> (3,6), 4 -> (3,7), 5 -> (3,8), 6 -> (5,0), 8 -> (5,1), 9 -> (5,2), 10 -> (5,3)) 
+  //  ) {
+  //    val textMap = IntMap(3 -> (4, "abcde"), 5 -> (0, "fghi"))
+  //    val bIndexPairSet = Set((3,6), (5,1))
+  //    Annotator.mkIndexPairMap(textMap, bIndexPairSet)
+  //  }
+  //}
 
-  val textMap = IntMap(3 -> (4, "abcde"), 5 -> (0, "fghi"))
-  val break = ' '
   "mkTextWithBreaks" should "return a string of text with extra characters inserted" in {
     assertResult("abcde fghi") {
       val bIndexPairSet = Set(5 -> 0) 
-      Annotator.mkTextWithBreaks(textMap, bIndexPairSet, break)
+      Annotator.mkTextWithBreaks("abcdefghi", Set(5), ' ')
     }
   }
-
-  it should "only add characters at specified positions if the positions mark the beginning of a text group" in {
-    assertResult("abcde fghi") {
-      val bIndexPairSet = Set(3 -> 7, 5 -> 0, 5 -> 3) 
-      Annotator.mkTextWithBreaks(textMap, bIndexPairSet, break)
-    }
-  }
-
 
   //Annotator Instances
 
   import Annotator._
   val annotator = Annotator(dom)
 
-  val quailTable = (annotator.getBIndexPairSet(Single(CharCon)).zipWithIndex.toMap.map {
-    case (indexPair, i) =>
-      val charIndex = indexPair._2
-      indexPair -> (if (i % 4 == 0) {
-        B('q')
-      } else if ((i - 3) % 4 == 0) {
-        L
-      } else {
-        I
-      })
-  }) + ((2,5) -> U('q'))
+  val quailTable = Map(
+    0 -> B('q'), 1 -> I, 2 -> I, 3 -> L, 4 -> B('q'), 
+    5 -> I, 6 -> I, 7 -> L, 8 -> B('q'), 9 -> I, 
+    10 -> I, 11 -> L, 12 -> B('q'), 13 -> I, 
+    14 -> I, 15 -> L, 16 -> B('q'), 17 -> I, 
+    18 -> I, 19 -> L, 20 -> B('q'), 21 -> I, 
+    22 -> I, 23 -> L, 24 -> B('q'), 25 -> I, 
+    26 -> I, 27 -> L, 28 -> B('q'), 29 -> I, 
+    30 -> I, 31 -> L, 32 -> U('q')
+  )
 
   val annotator2 = annotator.annotate(List("quail" -> 'q'), Single(CharCon), quailTable)
 
-  val falconTable: Map[(Int, Int), Label] = annotator2.getBIndexPairSet(Single(SegmentCon("quail")))
-    .filter(indexPair => indexPair._2 % 8 == 0)
-    .zipWithIndex.toMap.map {
-      case (indexPair, i) =>
-        val charIndex = indexPair._2
-        indexPair -> (if (i % 2 == 0) {
-          B('f')
-        } else if ((i - 1) % 2 == 0) {
-          L
-        } else {
-          I
-        })
-    }
-
+  val falconTable = Map(0 -> B('f'), 8 -> L, 12 -> B('f'), 20 -> L)
 
   val annotator3 = annotator2.annotate(List("falcon" -> 'f'), Single(SegmentCon("quail")), falconTable)
 
 
-  val penguinTable = annotator3.getBIndexPairSet(Single(SegmentCon("quail")))
-    .filter(indexPair => indexPair._2 % 6 == 0)
-    .map(ip => ip -> U('p')).toMap
+  val penguinTable = Map(0 -> U('p'), 12 -> U('p'), 24 -> U('p'))
 
   val annotator4 = annotator3.annotate(List("penguin" -> 'p'), Single(SegmentCon("quail")), penguinTable)
 
@@ -321,7 +295,6 @@ class AnnotatorSpec extends FlatSpec {
     AnnotationLink("employment", Map("employer" -> ("penguin", 1, 12), "employee" -> ("quail", 2, 1))),
     AnnotationLink("employment", Map("employer" -> ("penguin", 1, 12), "employee" -> ("quail", 2, 5))) 
   ))
-
 
   "Annotator()" should "create an Annotator instance with annotationBlockSeq populated without any annotations" in {
 
@@ -364,7 +337,7 @@ class AnnotatorSpec extends FlatSpec {
   }
 
   "annotate" should "raise an exception if called with an annotation type that already exists" in {
-    val table = annotator.getBIndexPairSet(Single(CharCon)).map(_ -> U('q')).toMap
+    val table = annotator.getBIndexSet(Single(CharCon)).map(_ -> U('q')).toMap
     intercept[AssertionError] {
       annotator4.annotate(List("quail" -> 'q'), Single(CharCon), table)
     }
@@ -380,7 +353,7 @@ class AnnotatorSpec extends FlatSpec {
 
   it should "raise an exception if called with a constraint range where\n" +
   "the range's annotation type does not descend from the constraint" in {
-    val table = annotator.getBIndexPairSet(Single(CharCon)).map(_ -> U('x')).toMap
+    val table = annotator.getBIndexSet(Single(CharCon)).map(_ -> U('x')).toMap
     intercept[IllegalArgumentException] {
       annotator4.annotate(List("xyz" -> 'x'), Range("falcon", SegmentCon("penguin")), table)
     }
@@ -423,86 +396,86 @@ class AnnotatorSpec extends FlatSpec {
   }
 
 
-  "getBIndexPairSet" should "raise an exception if the constraint range specifies a non existent annotation type" in {
+  "getBIndexSet" should "raise an exception if the constraint range specifies a non existent annotation type" in {
     intercept[NoSuchElementException] {
-      annotator.getBIndexPairSet(Range("xyz", CharCon))
+      annotator.getBIndexSet(Range("xyz", CharCon))
     }
   }
 
   it should "raise an exception if the range's annotation type does not descend from the constraint" in {
 
     intercept[IllegalArgumentException] {
-      annotator4.getBIndexPairSet(Range("falcon", SegmentCon("penguin")))
+      annotator4.getBIndexSet(Range("falcon", SegmentCon("penguin")))
     }
   }
 
   it should "produce all index pairs if the constraint is CharCon" in {
+    
     assertResult(Set(
-        (0,0), (0,1), (0,2), (0,3), (0,4), (0,5), (0,6), 
-        (0,7), (0,8), (0,9), (0,10), (0,11), (1,0), 
-        (1,1), (1,2), (1,3), (1,4), (1,5), (1,6), (1,7), 
-        (1,8), (1,9), (1,10), (1,11), (1,12), (1,13), 
-        (1,14), (2,0), (2,1), (2,2), (2,3), (2,4), (2,5)
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 
+      13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 
+      23, 24, 25, 26, 27, 28, 29, 30, 31, 32
     )) {
-      annotator.getBIndexPairSet(Single(CharCon))
+      annotator.getBIndexSet(Single(CharCon))
     }
   }
 
   it should "produce index pairs on a single of segment constraint of existing annotation type" in {
-    assertResult(Set((0,0), (0,4), (0,8), (1,0), (1,4), (1,8), (1,12), (2,1), (2,5))) {
-      annotator2.getBIndexPairSet(Single(SegmentCon("quail")))
+
+    assertResult(Set(0, 4, 8, 12, 16, 20, 24, 28, 32)) {
+      annotator2.getBIndexSet(Single(SegmentCon("quail")))
     }
   }
 
   it should "produce index pairs on a range where the annotation type descends from the constraint" in {
 
-    assertResult(Set((0,0), (1,0))) {
-      annotator3.getBIndexPairSet(Single(SegmentCon("falcon")))
+    assertResult(Set(0, 12)) {
+      annotator3.getBIndexSet(Single(SegmentCon("falcon")))
     }
 
-    assertResult(Set((0,0), (0,8), (1,0), (1,8))) {
-      annotator3.getBIndexPairSet(Range("falcon", SegmentCon("quail")))
+    assertResult(Set(0, 8, 12, 20)) {
+      annotator3.getBIndexSet(Range("falcon", SegmentCon("quail")))
     }
 
     assertResult(Set(
-        (0,0), (0,1), (0,2), (0,3), (0,8), (0,9), (0,10), (0,11),
-        (1,0), (1,1), (1,2), (1,3), (1,8), (1,9), (1,10), (1,11)
+        0, 1, 2, 3, 8, 9, 10, 11,
+        12, 13, 14, 15, 20, 21, 22, 23 
     )) {
-      annotator3.getBIndexPairSet(Range("falcon", CharCon))
+      annotator3.getBIndexSet(Range("falcon", CharCon))
     }
 
-    assertResult(Set((0,0), (1,0), (1,12))) {
-      annotator4.getBIndexPairSet(Single(SegmentCon("penguin")))
+    assertResult(Set(0, 12, 24)) {
+      annotator4.getBIndexSet(Single(SegmentCon("penguin")))
     }
   }
 
   "getSegment" should "raise an exception if the specified annotation type does not exist" in {
     intercept[NoSuchElementException] {
-      annotator4.getSegment("xyz")(0, 0)
+      annotator4.getSegment("xyz")(0)
     }
   }
 
   it should "produce segments of the provided annotation type that start on or after\n" +
   "the provided index pair" in {
 
-    assertResult(IntMap(0 -> IntMap(0 -> B('q'), 1 -> I, 2 -> I, 3 -> L))) {
-      annotator4.getSegment("quail")(0, 0)
+    assertResult(Map(0 -> B('q'), 1 -> I, 2 -> I, 3 -> L)) {
+      annotator4.getSegment("quail")(0)
     }
 
-    assertResult(IntMap(0 -> IntMap(4 -> B('q'), 5 -> I, 6 -> I, 7 -> L))) {
-      annotator4.getSegment("quail")(0, 2)
+    assertResult(Map(4 -> B('q'), 5 -> I, 6 -> I, 7 -> L)) {
+      annotator4.getSegment("quail")(2)
     }
 
-    assertResult(IntMap(0 -> IntMap(4 -> B('q'), 5 -> I, 6 -> I, 7 -> L))) {
-      annotator4.getSegment("quail")(0, 4)
+    assertResult(Map(4 -> B('q'), 5 -> I, 6 -> I, 7 -> L)) {
+      annotator4.getSegment("quail")(4)
     }
 
-    assertResult(IntMap(1 -> IntMap(0 -> B('f'), 8 -> L))) {
-      annotator4.getSegment("falcon")(1, 0)
+    assertResult(Map(12 -> B('f'), 20 -> L)) {
+      annotator4.getSegment("falcon")(12)
     }
 
-    assertResult(IntMap(1 -> IntMap(0 -> U('p')))) {
-      annotator4.getSegment("penguin")(0, 2)
+    assertResult(Map(12 -> U('p'))) {
+      annotator4.getSegment("penguin")(2)
     }
 
   }
@@ -510,24 +483,24 @@ class AnnotatorSpec extends FlatSpec {
   "getRange" should "characters that make up an annotation whose B or U starts on or after the provided index pair\n" +
   "to the U or L of the annotation type that the provided annotation type ultimately descends from" in {
 
-    assertResult(Some((0,0,0,3))) {
-      annotator4.getRange("quail")(0, 0)
+    assertResult(Some((0,3))) {
+      annotator4.getRange("quail")(0)
     }
 
-    assertResult(Some(0,4,0,7)) {
-      annotator4.getRange("quail")(0, 2)
+    assertResult(Some(4,7)) {
+      annotator4.getRange("quail")(2)
     }
 
-    assertResult(Some(0,4,0,7)) {
-      annotator4.getRange("quail")(0, 4)
+    assertResult(Some(4,7)) {
+      annotator4.getRange("quail")(4)
     }
 
-    assertResult(Some(1,0,1,11)) {
-      annotator4.getRange("falcon")(1, 0)
+    assertResult(Some(12,23)) {
+      annotator4.getRange("falcon")(12)
     }
 
-    assertResult(Some(1,0,1,3)) {
-      annotator4.getRange("penguin")(0, 2)
+    assertResult(Some(12, 15)) {
+      annotator4.getRange("penguin")(2)
     }
   }
 
@@ -588,52 +561,52 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  "getTextMapInRange" should "produce a map of block indexes to pairs of char index with text pair\n" +
+  "getTextInRange" should "produce a map of block indexes to pairs of char index with text pair\n" +
   "where the char index is that of the first char in the associated text and all the texts exist in the provided range" in {
 
-    assertResult(IntMap(0 -> (0,"abcd"))) {
-      annotator4.getTextMapInRange(0,0,0,3)
+    assertResult("abcd") {
+      annotator4.getTextInRange(0,3)
     }
 
-    assertResult(IntMap(0 -> (4,"efgh"))) {
-      annotator4.getTextMapInRange(0,4,0,7)
+    assertResult("efgh") {
+      annotator4.getTextInRange(4,7)
     }
 
-    assertResult(IntMap(1 -> (0,"mnopqrstuvwx"))) {
-      annotator4.getTextMapInRange(1,0,1,11)
+    assertResult("mnopqrstuvwx") {
+      annotator4.getTextInRange(12, 23)
     }
 
-    assertResult(IntMap(1 -> (0,"mnop"))) {
-      annotator4.getTextMapInRange(1,0,1,3)
+    assertResult("mnop") {
+      annotator4.getTextInRange(12, 15)
     }
 
-    assertResult(IntMap(1 -> (6,"stuvwxyz1"), 2 -> (0,"2345"))) {
-      annotator4.getTextMapInRange(1,6,2,3)
+    assertResult("stuvwxyz12345") {
+      annotator4.getTextInRange(18, 30)
     }
 
   }
 
 
-  "getTextMap" should "produce a text map of provided annotation type and begins\n" +
+  "getText" should "produce a text map of provided annotation type and begins\n" +
   "on or after the provided indexes" in {
-    assertResult(IntMap(0 -> (0,"abcd"))) {
-      annotator4.getTextMap("quail")(0, 0)
+    assertResult("abcd") {
+      annotator4.getText("quail")(0)
     }
 
-    assertResult(IntMap(0 -> (4,"efgh"))) {
-      annotator4.getTextMap("quail")(0, 2)
+    assertResult("efgh") {
+      annotator4.getText("quail")(2)
     }
 
-    assertResult(IntMap(0 -> (4,"efgh"))) {
-      annotator4.getTextMap("quail")(0, 4)
+    assertResult("efgh") {
+      annotator4.getText("quail")(4)
     }
 
-    assertResult(IntMap(1 -> (0,"mnopqrstuvwx"))) {
-      annotator4.getTextMap("falcon")(1, 0)
+    assertResult("mnopqrstuvwx") {
+      annotator4.getText("falcon")(12)
     }
 
-    assertResult(IntMap(1 -> (0,"mnop"))) {
-      annotator4.getTextMap("penguin")(0, 2)
+    assertResult("mnop") {
+      annotator4.getText("penguin")(2)
     }
   }
 
