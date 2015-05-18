@@ -778,8 +778,8 @@ class Annotator private (
     * the returned elements correspond to annotations that are of the provided annotation type 
     * and start on or after the provided indexes 
     */
-  final def getElements(annotationTypeName: String)(blockIndex: Int, charIndex: Int): IntMap[Element] = {
-    getRange(annotationTypeName)(pair2Total(blockIndex -> charIndex)) match {
+  final def getElements(annotationTypeName: String)(index: Int): IntMap[Element] = {
+    getRange(annotationTypeName)(index) match {
       case None =>
         IntMap[Element]()
       case Some((startIndex, endIndex)) =>

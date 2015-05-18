@@ -541,23 +541,23 @@ class AnnotatorSpec extends FlatSpec {
   "getElements" should "produce elements that have text between index pairs marked as B and L\n" +
   "or as U of the provided annotation on or after the provided block and char index" in {
     assertResult(IntMap(0 -> "abcdefghijkl")) {
-      annotator4.getElements("quail")(0, 0).mapValues(_.getText())
+      annotator4.getElements("quail")(0).mapValues(_.getText())
     }
 
     assertResult(IntMap(0 -> "abcdefghijkl")) {
-      annotator4.getElements("quail")(0, 2).mapValues(_.getText())
+      annotator4.getElements("quail")(2).mapValues(_.getText())
     }
 
     assertResult(IntMap(0 -> "abcdefghijkl")) {
-      annotator4.getElements("quail")(0, 4).mapValues(_.getText())
+      annotator4.getElements("quail")(4).mapValues(_.getText())
     }
 
     assertResult(IntMap(1 -> "mnopqrstuvwxyz1")) {
-      annotator4.getElements("falcon")(1, 0).mapValues(_.getText())
+      annotator4.getElements("falcon")(12).mapValues(_.getText())
     }
 
     assertResult(IntMap(1 -> "mnopqrstuvwxyz1")) {
-      annotator4.getElements("penguin")(0, 2).mapValues(_.getText())
+      annotator4.getElements("penguin")(2).mapValues(_.getText())
     }
   }
 
