@@ -291,9 +291,9 @@ class AnnotatorSpec extends FlatSpec {
 
 
   val annoWithLinks = annotator4.annotateLink(Set(
-    AnnotationLink("employment", Map("employer" -> ("penguin", 1, 0), "employee" -> ("quail", 0, 4))),
-    AnnotationLink("employment", Map("employer" -> ("penguin", 1, 12), "employee" -> ("quail", 2, 1))),
-    AnnotationLink("employment", Map("employer" -> ("penguin", 1, 12), "employee" -> ("quail", 2, 5))) 
+    AnnotationLink("employment", Map("employer" -> ("penguin", 12), "employee" -> ("quail", 4))),
+    AnnotationLink("employment", Map("employer" -> ("penguin", 24), "employee" -> ("quail", 28))),
+    AnnotationLink("employment", Map("employer" -> ("penguin", 24), "employee" -> ("quail", 32))) 
   ))
 
   "Annotator()" should "create an Annotator instance with annotationBlockSeq populated without any annotations" in {
@@ -388,9 +388,9 @@ class AnnotatorSpec extends FlatSpec {
     
     assertResult(Set())(annotator4.annotationLinkSet) 
     assertResult(Set(
-      AnnotationLink("employment", Map("employer" -> ("penguin", 1, 0), "employee" -> ("quail", 0, 4))),
-      AnnotationLink("employment", Map("employer" -> ("penguin", 1, 12), "employee" -> ("quail", 2, 1))),
-      AnnotationLink("employment", Map("employer" -> ("penguin", 1, 12), "employee" -> ("quail", 2, 5))) 
+      AnnotationLink("employment", Map("employer" -> ("penguin", 12), "employee" -> ("quail", 4))),
+      AnnotationLink("employment", Map("employer" -> ("penguin", 24), "employee" -> ("quail", 28))),
+      AnnotationLink("employment", Map("employer" -> ("penguin", 24), "employee" -> ("quail", 32))) 
     ))(annoWithLinks.annotationLinkSet) 
 
   }

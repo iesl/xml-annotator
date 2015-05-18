@@ -54,7 +54,7 @@ object Annotator {
     * It is used by Annotator instances to hold 
     * a map of annotation type strings to b-indexes of their keys' annotation type
     */
-  case class AnnotationLink(name: String, attrValueMap: Map[String, (String, Int, Int)])
+  case class AnnotationLink(name: String, attrValueMap: Map[String, (String, Int)])
 
   /** Constructors for labels
     *
@@ -308,6 +308,18 @@ object Annotator {
   //  }
   //}
 
+
+  final def mkBreakMap(size: Int, breakIndexSet: Set[Int]): Map[Int, Int] = {
+    (0 until size).foldLeft(Map[Int, Int]()) { case (mapAcc, index) =>
+      val key = if (mapAcc.isEmpty) 0 else mapAcc.keySet.max + 1
+      if (breakIndexSet.contains(index)) {
+        mapAcc + ((key + 1) -> index)
+      } else {
+        mapAcc + (key -> index)
+      }
+    }
+  }
+
   /** Function to make a map of ints to int pairs 
     * from a map of ints to int and string pairs and a set of int pairs
     */
@@ -470,8 +482,8 @@ object Annotator {
             val attrName = attr.getName()
             val Array(typeString, totalIndexString) = attr.getValue().split(' ')
 
-            val (blockIndex, charIndex) = anno.mkIndexPair(totalIndexString.toInt)  
-            (attrName -> (typeString, blockIndex, charIndex))
+              
+            (attrName -> (typeString, totalIndexString.toInt))
 
           }).toMap
 
@@ -988,7 +1000,7 @@ class Annotator private (
   final def annotateLink(_annotationLinkSet: Set[AnnotationLink]): Annotator = {
 
     val bIndexSetMap = _annotationLinkSet.flatMap(_.attrValueMap.values).map(v => {
-      val (annoTypeStr, _, _) = v
+      val (annoTypeStr, _) = v
       annoTypeStr -> getBIndexSet(Single(SegmentCon(annoTypeStr)))
     }).toMap
 
@@ -996,8 +1008,8 @@ class Annotator private (
       frozenDom, annotationBlockSeq, annotationInfoMap,
       annotationLinkSet ++ _annotationLinkSet.filter(annoLink => {
         annoLink.attrValueMap.foldLeft(true) {
-          case (boolAcc, (attr, (annoTypeStr, blockIndex, charIndex))) =>
-            boolAcc && bIndexSetMap.contains(annoTypeStr) && bIndexSetMap(annoTypeStr).contains(pair2Total(blockIndex -> charIndex))
+          case (boolAcc, (attr, (annoTypeStr, index))) =>
+            boolAcc && bIndexSetMap.contains(annoTypeStr) && bIndexSetMap(annoTypeStr).contains(index)
         }
       })
     )
@@ -1031,9 +1043,7 @@ class Annotator private (
       val e = new Element(link.name)
 
       link.attrValueMap.foreach(pair => {
-        val (attr, (typeString, blockIndex, charIndex)) = pair
-        val block = annotationBlockSeq(blockIndex)
-        val totalIndex = block.startIndex + charIndex 
+        val (attr, (typeString, totalIndex)) = pair
         e.setAttribute(attr, typeString + " " + totalIndex.toString)
       })
       annotationLinksE.addContent(e)
