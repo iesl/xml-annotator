@@ -810,12 +810,10 @@ class Annotator private (
   /** Function to return a text map of the provided annotation type 
     * where the text map starts on or after the provided index pair
     */
-  final def getText(annotationTypeName: String)(index: Int): String = {
-    getRange(annotationTypeName)(index) match {
-      case None =>
-        ""
-      case Some((startIndex, endIndex)) =>
-        getTextInRange(startIndex, endIndex)
+  final def getText(annotationTypeName: String)(index: Int): Option[(Int, String)] = {
+    getRange(annotationTypeName)(index) map {
+      case (startIndex, endIndex) =>
+        (startIndex, getTextInRange(startIndex, endIndex))
     }
   }
 
@@ -861,8 +859,8 @@ class Annotator private (
     * on or after each provided index pair 
     */
   private def getSegmentedText(annoType: String, bIndexSet: Set[Int]): List[String] = {
-    bIndexSet.toList.map(index => {
-      getText(annoType)(index)
+    bIndexSet.toList.flatMap(index => {
+      getText(annoType)(index).map(_._2)
     })
   }
 
@@ -888,8 +886,8 @@ class Annotator private (
       val groupBIndexSet = getBIndexSet(Single(SegmentCon(groupAnnoType)))
       groupBIndexSet.toList.map(bIndex => {
         val groupSegment = getSegment(groupAnnoType)(bIndex)
-        groupSegment.toList.map { case (index, label) =>
-          getText(annoType)(index)
+        groupSegment.toList.flatMap { case (index, label) =>
+          getText(annoType)(index).map(_._2)
         }
       })
     } else List()

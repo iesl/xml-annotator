@@ -589,23 +589,23 @@ class AnnotatorSpec extends FlatSpec {
 
   "getText" should "produce a text map of provided annotation type and begins\n" +
   "on or after the provided indexes" in {
-    assertResult("abcd") {
+    assertResult(Some(0, "abcd")) {
       annotator4.getText("quail")(0)
     }
 
-    assertResult("efgh") {
+    assertResult(Some(4, "efgh")) {
       annotator4.getText("quail")(2)
     }
 
-    assertResult("efgh") {
+    assertResult(Some(4, "efgh")) {
       annotator4.getText("quail")(4)
     }
 
-    assertResult("mnopqrstuvwx") {
+    assertResult(Some(12, "mnopqrstuvwx")) {
       annotator4.getText("falcon")(12)
     }
 
-    assertResult("mnop") {
+    assertResult(Some(12, "mnop")) {
       annotator4.getText("penguin")(2)
     }
   }
