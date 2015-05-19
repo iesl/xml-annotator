@@ -916,23 +916,6 @@ class Annotator private (
     getSegmentedText(annoType, bIndexPairSet)
   }
 
-  /** Function 
-    */
-  final def getGroupedText(groupAnnoType: String, annoType: String): List[List[String]] = {
-    if (getBIndexSet(Range(groupAnnoType, SegmentCon(annoType))).size > 0) {
-
-      val groupBIndexSet = getBIndexSet(Single(SegmentCon(groupAnnoType)))
-      groupBIndexSet.toList.map(bIndex => {
-        val groupSegment = getSegment(groupAnnoType)(bIndex)
-        groupSegment.toList.flatMap { case (index, label) =>
-          getText(annoType)(index).map(_._2)
-        }
-      })
-    } else List()
-    
-  }
-
-  
   def getAnnotationByTypeString(annoTypeString: String): Annotation = {
     val bIndexSet = annotationInfoMap(annoTypeString).bIndexSortedSet
     getAnnotation(bIndexSet, annoTypeString)
