@@ -46,6 +46,32 @@ import org.jdom2.output.support.AbstractXMLOutputProcessor
   */
 object Annotator {
 
+  case class Annotation(annoType: AnnotationType, content: AnnotationContent) {
+
+
+    
+    override def toString: String = {
+
+      def toStringWithIndent(annotation: Annotation, indent: String): String = {
+        indent + annotation.annoType.name + ": [\n" + (annotation.content match {
+          case LeafContent(xs) =>
+            xs.map(x => indent + "  " + x._1 + " -> " + x._2 + ",\n").mkString("")
+          case InnerContent(xs) => 
+            xs.map(a => toStringWithIndent(a, indent + "  ") + ",\n").mkString("")
+        }) + indent + "]"
+      }
+
+      toStringWithIndent(this, "")
+    }
+
+  }
+
+  sealed trait AnnotationContent
+  case class LeafContent(xs: List[(Int, String)]) extends AnnotationContent
+  case class InnerContent(xs: List[Annotation]) extends AnnotationContent
+
+
+
   type Element = org.jdom2.Element
   type ElementFilter = org.jdom2.filter.ElementFilter
 
@@ -907,6 +933,42 @@ class Annotator private (
   }
 
   
+  def getAnnotationByTypeString(annoTypeString: String): Annotation = {
+    val bIndexSet = annotationInfoMap(annoTypeString).bIndexSortedSet
+    getAnnotation(bIndexSet, annoTypeString)
+
+  }
+
+  def getAnnotation(bIndexSet: SortedSet[Int], annoTypeString: String): Annotation = {
+    val annotationInfo = annotationInfoMap(annoTypeString)
+    require(bIndexSet.subsetOf(annotationInfo.bIndexSortedSet))
+
+    val annoType = annotationInfo.annotationType
+    val content = annoType.constraintRange match {
+      case Single(CharCon) =>
+        LeafContent(bIndexSet.toList.flatMap(index => {
+          getText(annoTypeString)(index)
+        }))
+      case Range(_, CharCon) =>
+        LeafContent(bIndexSet.toList.flatMap(index => {
+          getText(annoTypeString)(index)
+        }))
+      case Single(SegmentCon(nextAnnoTypeString)) =>
+        InnerContent(bIndexSet.toList.map(index => {
+          val segmentBIndexSet = SortedSet[Int]() ++ getSegment(annoTypeString)(index).keySet
+          getAnnotation(segmentBIndexSet, nextAnnoTypeString)
+        }))
+      case Range(_, SegmentCon(nextAnnoTypeString)) =>
+        InnerContent(bIndexSet.toList.map(index => {
+          val segmentBIndexSet = SortedSet[Int]() ++ getSegment(annoTypeString)(index).keySet
+          getAnnotation(segmentBIndexSet, nextAnnoTypeString)
+        }))
+    }
+
+    Annotation(annoType, content)
+
+  }
+
   def pair2Total(pair: (Int, Int)): Int = {
     annotationBlockSeq(pair._1).startIndex + pair._2
   }
