@@ -561,27 +561,27 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  "getTextInRange" should "produce a map of block indexes to pairs of char index with text pair\n" +
+  "getTextByRange" should "produce a map of block indexes to pairs of char index with text pair\n" +
   "where the char index is that of the first char in the associated text and all the texts exist in the provided range" in {
 
     assertResult("abcd") {
-      annotator4.getTextInRange(0,3)
+      annotator4.getTextByRange((0,3))
     }
 
     assertResult("efgh") {
-      annotator4.getTextInRange(4,7)
+      annotator4.getTextByRange((4,7))
     }
 
     assertResult("mnopqrstuvwx") {
-      annotator4.getTextInRange(12, 23)
+      annotator4.getTextByRange((12, 23))
     }
 
     assertResult("mnop") {
-      annotator4.getTextInRange(12, 15)
+      annotator4.getTextByRange((12, 15))
     }
 
     assertResult("stuvwxyz12345") {
-      annotator4.getTextInRange(18, 30)
+      annotator4.getTextByRange((18, 30))
     }
 
   }
@@ -590,58 +590,58 @@ class AnnotatorSpec extends FlatSpec {
   "getText" should "produce a text map of provided annotation type and begins\n" +
   "on or after the provided indexes" in {
     assertResult(Some(0, "abcd")) {
-      annotator4.getText("quail")(0)
+      annotator4.getTextOption("quail")(0)
     }
 
     assertResult(Some(4, "efgh")) {
-      annotator4.getText("quail")(2)
+      annotator4.getTextOption("quail")(2)
     }
 
     assertResult(Some(4, "efgh")) {
-      annotator4.getText("quail")(4)
+      annotator4.getTextOption("quail")(4)
     }
 
     assertResult(Some(12, "mnopqrstuvwx")) {
-      annotator4.getText("falcon")(12)
+      annotator4.getTextOption("falcon")(12)
     }
 
     assertResult(Some(12, "mnop")) {
-      annotator4.getText("penguin")(2)
+      annotator4.getTextOption("penguin")(2)
     }
   }
 
 
-  "getTextByAnnotationType" should "produce a list of text strings, where each string is the text annotated by\n" +
+  "getTextSet" should "produce a list of text strings, where each string is the text annotated by\n" +
   "the provided annotation type" in {
-    assertResult(List("abcd", "efgh", "ijkl", "mnop", "qrst", "uvwx", "yz12", "3456", "7")) {
-      annotator4.getTextByAnnotationType("quail")
+    assertResult(Set("abcd", "efgh", "ijkl", "mnop", "qrst", "uvwx", "yz12", "3456", "7")) {
+      annotator4.getTextSet("quail").map(_._2)
     }
 
-    assertResult(List("abcdefghijkl", "mnopqrstuvwx")) {
-      annotator4.getTextByAnnotationType("falcon")
+    assertResult(Set("abcdefghijkl", "mnopqrstuvwx")) {
+      annotator4.getTextSet("falcon").map(_._2)
     }
 
-    assertResult(List("abcd", "mnop", "yz12")) {
-      annotator4.getTextByAnnotationType("penguin")
+    assertResult(Set("abcd", "mnop", "yz12")) {
+      annotator4.getTextSet("penguin").map(_._2)
     }
   }
 
-  "getFilteredTextByAnnotationType" should "raise an exception if the first annotation type\n" +
+  "getFilteredTextSet" should "raise an exception if the first annotation type\n" +
   "does not descend from the second annotation type" in {
     intercept[IllegalArgumentException] {
-      annotator4.getFilteredTextByAnnotationType("penguin", "falcon")
+      annotator4.getFilteredTextSet("penguin", "falcon").map(_._2)
     }
   }
 
   it should "produce a list of text strings, where each string is annotated by the second annotation type\n" +
   "and is also partly annotated by the first annotation type" in {
 
-    assertResult(List("abcd", "ijkl", "mnop", "uvwx")) {
-      annotator4.getFilteredTextByAnnotationType("falcon", "quail")
+    assertResult(Set("abcd", "ijkl", "mnop", "uvwx")) {
+      annotator4.getFilteredTextSet("falcon", "quail").map(_._2)
     }
 
-    assertResult(List("abcd", "mnop", "yz12")) {
-      annotator4.getFilteredTextByAnnotationType("penguin", "quail")
+    assertResult(Set("abcd", "mnop", "yz12")) {
+      annotator4.getFilteredTextSet("penguin", "quail").map(_._2)
     }
 
   }
