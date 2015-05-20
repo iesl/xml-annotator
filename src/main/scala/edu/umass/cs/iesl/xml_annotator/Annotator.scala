@@ -888,7 +888,7 @@ class Annotator private (
 
   }
 
-  def getRange(annoType: String)(index: Int) = {
+  def getRange(annoType: String)(index: Int): Option[(Int, Int)] = {
     getRangeBySegment(annoType)(getSegment(annoType)(index))
   }
 
