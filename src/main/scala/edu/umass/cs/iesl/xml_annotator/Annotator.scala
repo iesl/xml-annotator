@@ -53,12 +53,12 @@ object Annotator {
     override def toString: String = {
 
       def toStringWithIndent(annotation: Annotation, indent: String): String = {
-        indent + annotation.annoType.name + ": [\n" + (annotation.content match {
+        indent + annotation.annoType.name + ": \n" + (annotation.content match {
           case LeafContent(xs) =>
-            xs.map(x => indent + "  " + x._1 + " -> " + x._2 + ",\n").mkString("")
+            xs.map(x => indent + "  " + x._1 + " -> " + x._2).mkString("\n")
           case InnerContent(xs) => 
-            xs.map(a => toStringWithIndent(a, indent + "  ") + ",\n").mkString("")
-        }) + indent + "]"
+            xs.map(a => toStringWithIndent(a, indent + "  ")).mkString("\n")
+        })
       }
 
       toStringWithIndent(this, "")
