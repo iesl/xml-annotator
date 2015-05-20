@@ -789,8 +789,16 @@ class Annotator private (
     getBIndexSet(Single(SegmentCon(annoType)))
   }
 
+  def getBIndexSetWithinRange(annoType: String)(range: (Int, Int)) = {
+    getBIndexSetByAnnotationType(annoType).filter(i => i >= range._1 && i <= range._2)
+  }
+
   final def getFilteredBIndexSet(filterType: String, annoType: String) = {
     getBIndexSet(Range(filterType, SegmentCon(annoType)))
+  }
+
+  def getFilteredBIndexSetWithinRange(filterType: String, annoType: String)(range: (Int, Int)) = {
+    getFilteredBIndexSet(filterType, annoType).filter(i => i >= range._1 && i <= range._2)
   }
 
 
@@ -831,6 +839,12 @@ class Annotator private (
 
       Some(firstIndex, lastIndex)
     }
+  }
+
+  def getRangeSet(annotationType: String): SortedSet[(Int, Int)] = {
+    getBIndexSetByAnnotationType(annotationType).flatMap(i => {
+      getRange(annotationType)(i)
+    })
   }
 
   /** Function to return a map of ints to int string pairs based on a index range
