@@ -888,12 +888,12 @@ class Annotator private (
     }
   }
 
-  def getTextSet(annoTypeString: String): SortedSet[(Int, String)] = {
-    getBIndexSetByAnnotationType(annoTypeString).flatMap(i => getTextOption(annoTypeString)(i))
+  def getTextSeq(annoTypeString: String): Seq[(Int, String)] = {
+    getBIndexSetByAnnotationType(annoTypeString).toSeq.flatMap(i => getTextOption(annoTypeString)(i))
   }
 
-  def getFilteredTextSet(filterType: String, annoTypeString: String): SortedSet[(Int, String)] = {
-    getFilteredBIndexSet(filterType, annoTypeString).flatMap(i => getTextOption(annoTypeString)(i))
+  def getFilteredTextSeq(filterType: String, annoTypeString: String): Seq[(Int, String)] = {
+    getFilteredBIndexSet(filterType, annoTypeString).toSeq.flatMap(i => getTextOption(annoTypeString)(i))
   }
 
   def getAnnotationByTypeString(annoTypeString: String): Annotation = {

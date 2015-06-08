@@ -80,6 +80,16 @@ class AnnotatorSpec extends FlatSpec {
     _e
   }
 
+  "mkIndexPair and pair2Total" should "be inverses" in {
+    assertResult((2,3)) {
+      annotator.mkIndexPair(annotator.pair2Total((2,3)))
+    }
+
+    assertResult(15) {
+     annotator.pair2Total( annotator.mkIndexPair(15))
+    }
+  }
+
   "fontSize" should "raise an exception if the provided element has no attribute font-size" in {
     intercept[NullPointerException] {
       Annotator.fontSize(e)
@@ -611,37 +621,37 @@ class AnnotatorSpec extends FlatSpec {
   }
 
 
-  "getTextSet" should "produce a list of text strings, where each string is the text annotated by\n" +
+  "getTextSeq" should "produce a list of text strings, where each string is the text annotated by\n" +
   "the provided annotation type" in {
-    assertResult(Set("abcd", "efgh", "ijkl", "mnop", "qrst", "uvwx", "yz12", "3456", "7")) {
-      annotator4.getTextSet("quail").map(_._2)
+    assertResult(Seq("abcd", "efgh", "ijkl", "mnop", "qrst", "uvwx", "yz12", "3456", "7")) {
+      annotator4.getTextSeq("quail").map(_._2)
     }
 
-    assertResult(Set("abcdefghijkl", "mnopqrstuvwx")) {
-      annotator4.getTextSet("falcon").map(_._2)
+    assertResult(Seq("abcdefghijkl", "mnopqrstuvwx")) {
+      annotator4.getTextSeq("falcon").map(_._2)
     }
 
-    assertResult(Set("abcd", "mnop", "yz12")) {
-      annotator4.getTextSet("penguin").map(_._2)
+    assertResult(Seq("abcd", "mnop", "yz12")) {
+      annotator4.getTextSeq("penguin").map(_._2)
     }
   }
 
-  "getFilteredTextSet" should "raise an exception if the first annotation type\n" +
+  "getFilteredTextSeq" should "raise an exception if the first annotation type\n" +
   "does not descend from the second annotation type" in {
     intercept[IllegalArgumentException] {
-      annotator4.getFilteredTextSet("penguin", "falcon").map(_._2)
+      annotator4.getFilteredTextSeq("penguin", "falcon").map(_._2)
     }
   }
 
   it should "produce a list of text strings, where each string is annotated by the second annotation type\n" +
   "and is also partly annotated by the first annotation type" in {
 
-    assertResult(Set("abcd", "ijkl", "mnop", "uvwx")) {
-      annotator4.getFilteredTextSet("falcon", "quail").map(_._2)
+    assertResult(Seq("abcd", "ijkl", "mnop", "uvwx")) {
+      annotator4.getFilteredTextSeq("falcon", "quail").map(_._2)
     }
 
-    assertResult(Set("abcd", "mnop", "yz12")) {
-      annotator4.getFilteredTextSet("penguin", "quail").map(_._2)
+    assertResult(Seq("abcd", "mnop", "yz12")) {
+      annotator4.getFilteredTextSeq("penguin", "quail").map(_._2)
     }
 
   }
