@@ -353,11 +353,13 @@ class AnnotatorSpec extends FlatSpec {
     }
   }
 
-  it should "raise an exception if called with a constraint range containing an annotation\n" +
+  it should "return annotator unchanged if called with a constraint range containing an annotation\n" +
   "type that does not exist in the annotator" in {
-    intercept[NoSuchElementException] {
-      annotator.annotate(List("quail" -> 'q'), Single(SegmentCon("xyz")), quailTable)
-    }
+
+    val newA = annotator.annotate(List("quail" -> 'q'), Single(SegmentCon("xyz")), quailTable)
+    assertResult(annotator.annotationBlockSeq) { newA.annotationBlockSeq }
+    assertResult(annotator.annotationInfoMap) { newA.annotationInfoMap }
+
   }
 
 

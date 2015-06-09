@@ -753,7 +753,10 @@ class Annotator private (
       case Single(CharCon) =>
         SortedSet((0 until totalCharSize):_*)
       case Single(SegmentCon(annotationTypeName)) =>
-        annotationInfoMap(annotationTypeName).bIndexSortedSet
+        annotationInfoMap.get(annotationTypeName) match {
+          case Some(annotationInfo) => annotationInfo.bIndexSortedSet
+          case None => SortedSet()
+        }
       case Range(annotationTypeName, endCon) =>
         def loop(bIndexSortedSetAcc: SortedSet[Int], constraint: Constraint): SortedSet[Int] = {
           (constraint, endCon) match {
@@ -897,9 +900,13 @@ class Annotator private (
   }
 
   def getAnnotationByTypeString(annoTypeString: String): Annotation = {
-    val bIndexSet = annotationInfoMap(annoTypeString).bIndexSortedSet
-    getAnnotation(bIndexSet, annoTypeString)
-
+    annotationInfoMap.get(annoTypeString) match {
+      case Some(annotationInfo) =>
+        val bIndexSet = annotationInfo.bIndexSortedSet
+        getAnnotation(bIndexSet, annoTypeString)
+      case None => 
+        Annotation(AnnotationType(annoTypeString, 'a', Single(CharCon)), LeafContent(List()))
+    }
   }
 
   def getRange(annoType: String)(index: Int): Option[(Int, Int)] = {
@@ -952,62 +959,66 @@ class Annotator private (
   ): Annotator = {
 
     val annotatableIndexSet = getBIndexSet(constraintRange)
-
-    val annotationTypeSeq = nameCharPairSeq.map {
-      case (name, char) =>
-        assert(!annotationInfoMap.contains(name), "annotation type named " + name + " already exists")
-        AnnotationType(name, char, constraintRange)
-    }
-
-    val labelTable = fullLabelMap.filter(p => {
-      val indexPair = p._1
-      annotatableIndexSet.contains(pair2Total(indexPair))
-    }).foldLeft(IntMap[IntMap[Label]]()) {
-      case (tableAcc, ((blockIndex, charIndex), label)) =>
-        if (tableAcc.contains(blockIndex)) {
-          tableAcc + (blockIndex -> (tableAcc(blockIndex) + (charIndex -> label)))
-        } else {
-          tableAcc + (blockIndex -> IntMap(charIndex -> label))
-        }
-    }
-
-    val _annotationBlockSeq = annotationBlockSeq.zipWithIndex.map { case (block, blockIndex) => {
-      labelTable.get(blockIndex) match {
-        case None => block
-        case Some(labelMap) =>
-          val annotation = AnnotationSpan(labelMap, annotationTypeSeq)
-          addAnnotation(annotation, block)
+    if (annotatableIndexSet.isEmpty) {
+      this
+    } else {
+      val annotationTypeSeq = nameCharPairSeq.map {
+        case (name, char) =>
+          assert(!annotationInfoMap.contains(name), "annotation type named " + name + " already exists")
+          AnnotationType(name, char, constraintRange)
       }
-    }}
 
-    val _annotationInfoMap =  {
-      val annotationInfoList = annotationTypeSeq.map {
-        case _annotationType => 
-          val char = _annotationType.c
-          val bIndexSet = annotatableIndexSet.filter(index => {
-            val (blockIndex, charIndex) = mkIndexPair(index)
-            labelTable.contains(blockIndex) && ({
-              val labelMap = labelTable(blockIndex)
-              labelMap.contains(charIndex) && ({
-                val label = labelMap(charIndex)
-                label == U(char) || label == B(char)
+      val labelTable = fullLabelMap.filter(p => {
+        val indexPair = p._1
+        annotatableIndexSet.contains(pair2Total(indexPair))
+      }).foldLeft(IntMap[IntMap[Label]]()) {
+        case (tableAcc, ((blockIndex, charIndex), label)) =>
+          if (tableAcc.contains(blockIndex)) {
+            tableAcc + (blockIndex -> (tableAcc(blockIndex) + (charIndex -> label)))
+          } else {
+            tableAcc + (blockIndex -> IntMap(charIndex -> label))
+          }
+      }
+
+      val _annotationBlockSeq = annotationBlockSeq.zipWithIndex.map { case (block, blockIndex) => {
+        labelTable.get(blockIndex) match {
+          case None => block
+          case Some(labelMap) =>
+            val annotation = AnnotationSpan(labelMap, annotationTypeSeq)
+            addAnnotation(annotation, block)
+        }
+      }}
+
+      val _annotationInfoMap =  {
+        val annotationInfoList = annotationTypeSeq.map {
+          case _annotationType => 
+            val char = _annotationType.c
+            val bIndexSet = annotatableIndexSet.filter(index => {
+              val (blockIndex, charIndex) = mkIndexPair(index)
+              labelTable.contains(blockIndex) && ({
+                val labelMap = labelTable(blockIndex)
+                labelMap.contains(charIndex) && ({
+                  val label = labelMap(charIndex)
+                  label == U(char) || label == B(char)
+                })
               })
             })
-          })
 
-          _annotationType.name -> AnnotationInfo(_annotationType, bIndexSet)
-          
+            _annotationType.name -> AnnotationInfo(_annotationType, bIndexSet)
+            
+        }
+
+        annotationInfoMap ++ annotationInfoList
       }
 
-      annotationInfoMap ++ annotationInfoList
+      new Annotator(
+        frozenDom,
+        _annotationBlockSeq,
+        _annotationInfoMap,
+        annotationLinkSet
+      )
     }
 
-    new Annotator(
-      frozenDom,
-      _annotationBlockSeq,
-      _annotationInfoMap,
-      annotationLinkSet
-    )
     
   }
 
