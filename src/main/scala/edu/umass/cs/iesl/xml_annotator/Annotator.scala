@@ -248,7 +248,8 @@ object Annotator {
 
     Option(e.getAttribute("transform")) match {
       case Some(attr) if !attr.getValue().isEmpty  =>
-        attr.getValue().split("((?<=\\))[\\s,]+)").map(str => {
+
+        val ms = attr.getValue().trim().split("((?<=\\))[\\s,]+)").map(str => {
           val firstN = str.indexOf("(") + 1
           val lastN = str.size - str.indexOf(")")
           val doubleArray = str.drop(firstN).dropRight(lastN).split("[\\s,]+").map(_.toDouble)
@@ -262,9 +263,12 @@ object Annotator {
             assert(doubleArray.size == 2, "svg scale has invalid size")
             scale2Matrix(doubleArray)
           } else {
+            assert(false, "could not parse: " + e.getAttribute("transform"))
             identity
           }
-        }).foldLeft(identity) {
+        })
+
+        ms.foldLeft(identity) {
           case (mAcc, m) => svgMatrixMultiply(mAcc, m)
         }
       case _ => 
@@ -780,7 +784,13 @@ class Annotator private (
               loop(_bIndexSortedSetAcc, _constraint)
           }
         }
-        loop(annotationInfoMap(annotationTypeName).bIndexSortedSet, SegmentCon(annotationTypeName))
+
+        annotationInfoMap.get(annotationTypeName) match {
+          case Some(annotationInfo) =>
+            loop(annotationInfo.bIndexSortedSet, SegmentCon(annotationTypeName))
+          case None => 
+            SortedSet()
+        }
       case _ =>
         require(false, "constraintRange is illformed")
         SortedSet[Int]()

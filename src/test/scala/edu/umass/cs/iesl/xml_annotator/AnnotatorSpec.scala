@@ -408,8 +408,8 @@ class AnnotatorSpec extends FlatSpec {
   }
 
 
-  "getBIndexSet" should "raise an exception if the constraint range specifies a non existent annotation type" in {
-    intercept[NoSuchElementException] {
+  "getBIndexSet" should "return empty set if the constraint range specifies a non existent annotation type" in {
+    assertResult(Set()) {
       annotator.getBIndexSet(Range("xyz", CharCon))
     }
   }
