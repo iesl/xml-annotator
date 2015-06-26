@@ -681,51 +681,59 @@ class Annotator private (
 
     val annotationType = annotationInfoMap(annotationTypeName).annotationType
 
-    def loop(foundFirst: Boolean, blockIndex: Int, charIndex: Int): Map[Int, Map[Int, Label]] = {
+    def loop(foundFirst: Boolean, blockIndex: Int, charIndex: Int, acc: Map[Int, Map[Int, Label]]): Map[Int, Map[Int, Label]] = {
 
       if (annotationBlockSeq.size > blockIndex) {
         val block = annotationBlockSeq(blockIndex)
         block.annotationMap.get(annotationType) match {
-          case None => loop(foundFirst, blockIndex + 1, 0)
+          case None => loop(foundFirst, blockIndex + 1, 0, acc)
           case Some(annotation) =>
             val labelMap = annotation.labelMap
             labelMap.keys.find(_ >= charIndex) match {
               case None =>
-                loop(foundFirst, blockIndex + 1, 0)
+                loop(foundFirst, blockIndex + 1, 0, acc)
               case Some(_charIndex) =>
                 val label = labelMap(_charIndex)
                 (foundFirst, label) match {
-                  case (false, B(char)) if annotationType.c == char => loop(true, blockIndex, _charIndex) 
-                  case (false, U(char)) if annotationType.c == char => loop(true, blockIndex, _charIndex) 
-                  case (false, _) => loop(false, blockIndex, _charIndex + 1)
-
+                  case (false, B(char)) if annotationType.c == char => loop(true, blockIndex, _charIndex, acc) 
+                  case (false, U(char)) if annotationType.c == char => loop(true, blockIndex, _charIndex, acc) 
+                  case (false, _) => loop(false, blockIndex, _charIndex + 1, acc)
                   case (true, L) =>
-                    IntMap(blockIndex -> IntMap(_charIndex -> L))
-                  case (true, U(char)) if annotationType.c == char => 
-                    IntMap(blockIndex -> IntMap(_charIndex -> U(char)))
-                  case (true, U(_)) => 
-                    loop(foundFirst, blockIndex, _charIndex + 1)
-                  case (true, B(char)) if annotationType.c != char => 
-                    loop(foundFirst, blockIndex, _charIndex + 1)
-                  case (true, label) => 
-                    val labelTable = loop(foundFirst, blockIndex, _charIndex + 1)
-                    labelTable.get(blockIndex) match {
+                    acc.get(blockIndex) match {
                       case None => 
-                        labelTable + (blockIndex -> IntMap(_charIndex -> label))
+                        acc + (blockIndex -> IntMap(_charIndex -> L))
                       case Some(rowIntMap) => 
-                        labelTable + (blockIndex -> (rowIntMap + (_charIndex -> label)))
+                        acc + (blockIndex -> (rowIntMap + (_charIndex -> L)))
+                    }
+                  case (true, U(char)) if annotationType.c == char => 
+                    acc.get(blockIndex) match {
+                      case None => 
+                        acc + (blockIndex -> IntMap(_charIndex -> U(char)))
+                      case Some(rowIntMap) => 
+                        acc + (blockIndex -> (rowIntMap + (_charIndex -> U(char))))
+                    }
+                  case (true, U(_)) => 
+                    loop(foundFirst, blockIndex, _charIndex + 1, acc)
+                  case (true, B(char)) if annotationType.c != char => 
+                    loop(foundFirst, blockIndex, _charIndex + 1, acc)
+                  case (true, label) => 
+                    acc.get(blockIndex) match {
+                      case None => 
+                        loop(foundFirst, blockIndex, _charIndex + 1, acc + (blockIndex -> IntMap(_charIndex -> label)))
+                      case Some(rowIntMap) => 
+                        loop(foundFirst, blockIndex, _charIndex + 1, acc + (blockIndex -> (rowIntMap + (_charIndex -> label))))
                     }
                 }
             }
         }
       } else {
-        Map[Int, Map[Int, Label]]()
+        acc
       }
 
     }
 
     val (blockIndex, charIndex) = mkIndexPair(index)
-    val table = loop(false, blockIndex, charIndex)
+    val table = loop(false, blockIndex, charIndex, Map[Int, Map[Int, Label]]())
     table.flatMap { case (blockIndex, labelMap) =>
       labelMap.map { case (charIndex, char) =>
         pair2Total(blockIndex -> charIndex) -> char
